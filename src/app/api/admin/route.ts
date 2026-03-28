@@ -40,11 +40,13 @@ export async function GET(req: NextRequest) {
   }
 
   const allUsers: Array<{ id: string; email: string; name: string; createdAt: number; analysisCount: number }> = [];
-  let cursor: string | number = 0;
-  do {
-    const [nextCursor, keys] = await redis.scan(cursor as number, { match: 'user:email:*', count: 100 });
-    cursor = nextCursor;
-    for (const key of keys as string[]) {
+  let done = false;
+  let cur = 0;
+  while (!done) {
+    const result = await redis.scan(cur, { match: 'user:email:*', count: 100 });
+    const nextCur = Number(result[0]);
+    const keys = result[1] as string[];
+    for (const key of keys) {
       const uid = await redis.get<string>(key);
       if (uid) {
         const userRaw = await redis.get<string>(`user:${uid}`);
@@ -55,7 +57,8 @@ export async function GET(req: NextRequest) {
         }
       }
     }
-  } while (cursor !== 0 && cursor !== '0');
+    if (nextCur === 0) { done = true; } else { cur = nextCur; }
+  }
 
   return NextResponse.json({ totalUsers: allUsers.length, users: allUsers.sort((a, b) => b.createdAt - a.createdAt) });
 }
