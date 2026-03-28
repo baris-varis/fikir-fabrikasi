@@ -1,11 +1,31 @@
 import { Redis } from '@upstash/redis';
 import { Analysis, AnalysisState, User } from '@/types';
 
-// ─── Redis Client ───────────────────────────────────────
+// ─── Lazy Redis Client ──────────────────────────────────
 
-const redis = new Redis({
-  url: process.env.UPSTASH_REDIS_REST_URL!,
-  token: process.env.UPSTASH_REDIS_REST_TOKEN!,
+let _redis: Redis | null = null;
+
+function getRedis(): Redis {
+  if (!_redis) {
+    const url = process.env.UPSTASH_REDIS_REST_URL;
+    const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+    if (!url || !token) {
+      throw new Error('UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN must be set');
+    }
+    _redis = new Redis({ url, token });
+  }
+  return _redis;
+}
+
+const redis = new Proxy({} as Redis, {
+  get(_, prop) {
+    const client = getRedis();
+    const value = (client as Record<string | symbol, unknown>)[prop];
+    if (typeof value === 'function') {
+      return value.bind(client);
+    }
+    return value;
+  },
 });
 
 export default redis;
@@ -44,15 +64,12 @@ export async function getUserByEmail(email: string): Promise<User | null> {
 
 export async function createAnalysis(analysis: Analysis): Promise<void> {
   const pipeline = redis.pipeline();
-  // Store analysis (without messages for main record)
   const { messages, ...analysisMeta } = analysis;
   pipeline.set(keys.analysis(analysis.id), JSON.stringify(analysisMeta));
-  // Add to user's analysis list (sorted by creation time)
   pipeline.zadd(keys.userAnalyses(analysis.userId), {
     score: analysis.createdAt,
     member: analysis.id,
   });
-  // Store messages separately
   if (messages.length > 0) {
     pipeline.set(keys.analysisMessages(analysis.id), JSON.stringify(messages));
   }
@@ -93,7 +110,6 @@ export async function addMessages(
     ? (typeof existing === 'string' ? JSON.parse(existing) : existing)
     : [];
   messages.push(...newMessages);
-  // Keep last 200 messages to avoid hitting size limits
   const trimmed = messages.slice(-200);
   await redis.set(keys.analysisMessages(analysisId), JSON.stringify(trimmed));
 }
@@ -102,12 +118,10 @@ export async function getUserAnalyses(
   userId: string,
   limit = 20,
 ): Promise<Analysis[]> {
-  // Get analysis IDs sorted by creation time (newest first)
   const ids = await redis.zrange(keys.userAnalyses(userId), 0, limit - 1, {
     rev: true,
   });
   if (!ids.length) return [];
-
   const analyses = await Promise.all(
     ids.map((id) => getAnalysis(id as string)),
   );
