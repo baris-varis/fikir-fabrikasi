@@ -51,7 +51,6 @@ export default function LandingPage() {
 
         <div className="inline-flex items-center gap-2 fab-badge-module text-sm mb-6 px-4 py-1.5">
           <span className="w-1.5 h-1.5 rounded-full bg-fab-accent animate-pulse" />
-          McKinsey × Y Combinator × Sequoia
         </div>
 
         <h1 className="font-display font-extrabold text-5xl lg:text-7xl tracking-tight leading-[1.1] mb-6">
