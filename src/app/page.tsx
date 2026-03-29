@@ -199,7 +199,7 @@ export default function LandingPage() {
         <div className="lgl" style={{ width: 300, height: 300, background: 'rgba(245,158,11,0.05)', top: 100, right: 200 }} />
         {/* Watermark logo */}
         <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', opacity: 0.03, pointerEvents: 'none', zIndex: 0 }}>
-          <Image src="/logo.png" alt="" width={600} height={600} style={{ filter: 'grayscale(100%)' }} />
+          <Image src="/logo.png" alt="" width={600} height={600} style={{ }} />
         </div>
 
         <div className="ls" style={{ position: 'relative', zIndex: 1 }}>
@@ -237,7 +237,7 @@ export default function LandingPage() {
       {/* How It Works */}
       <section id="how" style={{ padding: '80px 0', background: '#f1f5f9', position: 'relative', overflow: 'hidden' }}>
         <div style={{ position: 'absolute', top: '50%', right: -80, transform: 'translateY(-50%)', opacity: 0.025, pointerEvents: 'none' }}>
-          <Image src="/logo.png" alt="" width={450} height={450} style={{ filter: 'grayscale(100%)' }} />
+          <Image src="/logo.png" alt="" width={450} height={450} style={{ }} />
         </div>
         <div className="ls" style={{ position: 'relative', zIndex: 1 }}>
           <div style={{ textAlign: 'center', marginBottom: 56 }}>
@@ -260,7 +260,7 @@ export default function LandingPage() {
       {/* Why Ideactory */}
       <section style={{ padding: '80px 0', background: '#FAFBFE', position: 'relative', overflow: 'hidden' }}>
         <div style={{ position: 'absolute', top: '50%', left: -100, transform: 'translateY(-50%)', opacity: 0.02, pointerEvents: 'none' }}>
-          <Image src="/logo.png" alt="" width={500} height={500} style={{ filter: 'grayscale(100%)' }} />
+          <Image src="/logo.png" alt="" width={500} height={500} style={{ }} />
         </div>
         <div className="ls" style={{ position: 'relative', zIndex: 1 }}>
           <div style={{ textAlign: 'center', marginBottom: 56 }}>
@@ -284,7 +284,7 @@ export default function LandingPage() {
       {/* Documents */}
       <section style={{ padding: '80px 0', background: '#f1f5f9', position: 'relative', overflow: 'hidden' }}>
         <div style={{ position: 'absolute', bottom: -60, right: -40, opacity: 0.02, pointerEvents: 'none' }}>
-          <Image src="/logo.png" alt="" width={400} height={400} style={{ filter: 'grayscale(100%)' }} />
+          <Image src="/logo.png" alt="" width={400} height={400} style={{ }} />
         </div>
         <div className="ls" style={{ position: 'relative', zIndex: 1 }}>
           <div style={{ textAlign: 'center', marginBottom: 48 }}>
