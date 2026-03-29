@@ -28,7 +28,7 @@ export default function LandingPage() {
         <div className="flex items-center gap-3">
           <Image src="/logo.png" alt="Logo" width={40} height={40} />
           <span className="font-display font-bold text-lg tracking-tight">Ideactory.ai</span>
-          <span className="fab-badge-module text-[10px]">v6.2</span>
+          
         </div>
         <div className="flex items-center gap-3">
           <Link href="/login" className="fab-btn-ghost text-sm">Giriş</Link>
