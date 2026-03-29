@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getRedisClient } from '@/lib/redis';
+import redis from '@/lib/redis';
 import { User } from '@/types';
 
 function isAdmin(req: NextRequest): boolean {
@@ -14,7 +14,6 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const r = getRedisClient();
   const { searchParams } = req.nextUrl;
   const userId = searchParams.get('userId');
   const analysisId = searchParams.get('analysisId');
@@ -22,8 +21,8 @@ export async function GET(req: NextRequest) {
   try {
     if (analysisId) {
       const [metaRaw, messagesRaw] = await Promise.all([
-        r.get(`analysis:${analysisId}`),
-        r.get(`analysis:${analysisId}:messages`),
+        redis.get(`analysis:${analysisId}`),
+        redis.get(`analysis:${analysisId}:messages`),
       ]);
       if (!metaRaw) return NextResponse.json({ error: 'Not found' }, { status: 404 });
       const meta = typeof metaRaw === 'string' ? JSON.parse(metaRaw) : metaRaw;
@@ -32,24 +31,24 @@ export async function GET(req: NextRequest) {
     }
 
     if (userId) {
-      const analysisIds = await r.zrange(`user:${userId}:analyses`, 0, -1, { rev: true });
+      const analysisIds = await redis.zrange(`user:${userId}:analyses`, 0, -1, { rev: true });
       const analyses = [];
       for (const id of analysisIds) {
-        const raw = await r.get(`analysis:${id}`);
+        const raw = await redis.get(`analysis:${id}`);
         if (raw) analyses.push(typeof raw === 'string' ? JSON.parse(raw) : raw);
       }
       return NextResponse.json({ userId, analyses });
     }
 
-    const emailKeys = await r.keys('user:email:*');
+    const emailKeys = await redis.keys('user:email:*');
     const allUsers = [];
     for (const key of emailKeys) {
-      const uid = await r.get(key);
+      const uid = await redis.get(key);
       if (uid && typeof uid === 'string') {
-        const userRaw = await r.get(`user:${uid}`);
+        const userRaw = await redis.get(`user:${uid}`);
         if (userRaw) {
           const user = (typeof userRaw === 'string' ? JSON.parse(userRaw) : userRaw) as User;
-          const count = await r.zcard(`user:${user.id}:analyses`);
+          const count = await redis.zcard(`user:${user.id}:analyses`);
           allUsers.push({ id: user.id, email: user.email, name: user.name, createdAt: user.createdAt, analysisCount: count });
         }
       }
