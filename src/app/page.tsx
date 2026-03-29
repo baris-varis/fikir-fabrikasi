@@ -109,7 +109,7 @@ export default function LandingPage() {
 
       {/* Footer */}
       <footer className="relative z-10 border-t border-fab-border py-6 text-center text-fab-muted text-xs">
-        Ideactory.ai v6.2 — Powered by Claude
+        Ideactory.ai v6.2
       </footer>
     </div>
   );
