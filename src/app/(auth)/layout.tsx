@@ -13,7 +13,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
       <Link href="/" className="flex flex-col items-center gap-4 mb-8">
         <Image
           src="/logo.png"
-          alt="Fikir Analiz Factory"
+          alt="Ideactory.ai"
           width={180}
           height={180}
           className="drop-shadow-2xl"

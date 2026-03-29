@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Plus, LogOut, Menu, X, ChevronRight } from 'lucide-react';
+import { LayoutDashboard, Plus, LogOut, Menu, X, ChevronRight, Shield } from 'lucide-react';
 import { signOut } from 'next-auth/react';
 
 interface Props {
@@ -16,6 +16,7 @@ interface Props {
 const NAV_ITEMS = [
   { href: '/analyses', icon: LayoutDashboard, label: 'Analizlerim' },
   { href: '/new', icon: Plus, label: 'Yeni Analiz' },
+  { href: '/admin', icon: Shield, label: 'Admin' },
 ];
 
 export default function DashboardShell({ userName, userEmail, children }: Props) {
@@ -45,7 +46,7 @@ export default function DashboardShell({ userName, userEmail, children }: Props)
           <Link href="/analyses" className="flex items-center gap-2.5">
             <Image src="/logo.png" alt="Logo" width={32} height={32} />
             <div>
-              <div className="font-display font-bold text-sm leading-tight">Fikir Analiz Factory</div>
+              <div className="font-display font-bold text-sm leading-tight">Ideactory.ai</div>
               <div className="text-[10px] text-fab-muted">v6.2</div>
             </div>
           </Link>
@@ -108,7 +109,7 @@ export default function DashboardShell({ userName, userEmail, children }: Props)
           <button onClick={() => setSidebarOpen(true)} className="text-fab-muted-light">
             <Menu className="w-5 h-5" />
           </button>
-          <span className="font-display font-semibold text-sm">Fikir Fabrikası</span>
+          <span className="font-display font-semibold text-sm">Ideactory.ai</span>
         </header>
 
         {/* Page content */}

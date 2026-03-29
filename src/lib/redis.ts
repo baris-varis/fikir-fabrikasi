@@ -1,23 +1,14 @@
 import { Redis } from '@upstash/redis';
 import { Analysis, AnalysisState, User } from '@/types';
 
-// ─── Redis Client (lazy) ───────────────────────────────
+// ─── Redis Client ───────────────────────────────────────
 
-let _redis: Redis | undefined;
+const redis = new Redis({
+  url: process.env.UPSTASH_REDIS_REST_URL!,
+  token: process.env.UPSTASH_REDIS_REST_TOKEN!,
+});
 
-export function getRedisClient(): Redis {
-  if (!_redis) {
-    _redis = new Redis({
-      url: process.env.UPSTASH_REDIS_REST_URL || '',
-      token: process.env.UPSTASH_REDIS_REST_TOKEN || '',
-    });
-  }
-  return _redis;
-}
-
-const redis = { get client() { return getRedisClient(); } };
-
-export default redis.client;
+export default redis;
 
 // ─── Key Helpers ────────────────────────────────────────
 
@@ -32,22 +23,19 @@ const keys = {
 // ─── User Operations ───────────────────────────────────
 
 export async function createUser(user: User): Promise<void> {
-  const r = getRedisClient();
-  const pipeline = r.pipeline();
+  const pipeline = redis.pipeline();
   pipeline.set(keys.user(user.id), JSON.stringify(user));
   pipeline.set(keys.userByEmail(user.email), user.id);
   await pipeline.exec();
 }
 
 export async function getUserById(id: string): Promise<User | null> {
-  const r = getRedisClient();
-  const data = await r.get<string>(keys.user(id));
+  const data = await redis.get<string>(keys.user(id));
   return data ? (typeof data === 'string' ? JSON.parse(data) : data as unknown as User) : null;
 }
 
 export async function getUserByEmail(email: string): Promise<User | null> {
-  const r = getRedisClient();
-  const userId = await r.get<string>(keys.userByEmail(email));
+  const userId = await redis.get<string>(keys.userByEmail(email));
   if (!userId) return null;
   return getUserById(userId);
 }
@@ -55,14 +43,16 @@ export async function getUserByEmail(email: string): Promise<User | null> {
 // ─── Analysis Operations ────────────────────────────────
 
 export async function createAnalysis(analysis: Analysis): Promise<void> {
-  const r = getRedisClient();
-  const pipeline = r.pipeline();
+  const pipeline = redis.pipeline();
+  // Store analysis (without messages for main record)
   const { messages, ...analysisMeta } = analysis;
   pipeline.set(keys.analysis(analysis.id), JSON.stringify(analysisMeta));
+  // Add to user's analysis list (sorted by creation time)
   pipeline.zadd(keys.userAnalyses(analysis.userId), {
     score: analysis.createdAt,
     member: analysis.id,
   });
+  // Store messages separately
   if (messages.length > 0) {
     pipeline.set(keys.analysisMessages(analysis.id), JSON.stringify(messages));
   }
@@ -70,10 +60,9 @@ export async function createAnalysis(analysis: Analysis): Promise<void> {
 }
 
 export async function getAnalysis(id: string): Promise<Analysis | null> {
-  const r = getRedisClient();
   const [metaRaw, messagesRaw] = await Promise.all([
-    r.get<string>(keys.analysis(id)),
-    r.get<string>(keys.analysisMessages(id)),
+    redis.get<string>(keys.analysis(id)),
+    redis.get<string>(keys.analysisMessages(id)),
   ]);
   if (!metaRaw) return null;
   const meta = typeof metaRaw === 'string' ? JSON.parse(metaRaw) : metaRaw;
@@ -83,38 +72,53 @@ export async function getAnalysis(id: string): Promise<Analysis | null> {
   return { ...meta, messages } as Analysis;
 }
 
-export async function updateAnalysisState(id: string, state: AnalysisState): Promise<void> {
-  const r = getRedisClient();
+export async function updateAnalysisState(
+  id: string,
+  state: AnalysisState,
+): Promise<void> {
   const analysis = await getAnalysis(id);
   if (!analysis) throw new Error('Analysis not found');
   analysis.state = state;
   analysis.updatedAt = Date.now();
   const { messages, ...meta } = analysis;
-  await r.set(keys.analysis(id), JSON.stringify(meta));
+  await redis.set(keys.analysis(id), JSON.stringify(meta));
 }
 
-export async function addMessages(analysisId: string, newMessages: Analysis['messages']): Promise<void> {
-  const r = getRedisClient();
-  const existing = await r.get<string>(keys.analysisMessages(analysisId));
+export async function addMessages(
+  analysisId: string,
+  newMessages: Analysis['messages'],
+): Promise<void> {
+  const existing = await redis.get<string>(keys.analysisMessages(analysisId));
   const messages = existing
     ? (typeof existing === 'string' ? JSON.parse(existing) : existing)
     : [];
   messages.push(...newMessages);
+  // Keep last 200 messages to avoid hitting size limits
   const trimmed = messages.slice(-200);
-  await r.set(keys.analysisMessages(analysisId), JSON.stringify(trimmed));
+  await redis.set(keys.analysisMessages(analysisId), JSON.stringify(trimmed));
 }
 
-export async function getUserAnalyses(userId: string, limit = 20): Promise<Analysis[]> {
-  const r = getRedisClient();
-  const ids = await r.zrange(keys.userAnalyses(userId), 0, limit - 1, { rev: true });
+export async function getUserAnalyses(
+  userId: string,
+  limit = 20,
+): Promise<Analysis[]> {
+  // Get analysis IDs sorted by creation time (newest first)
+  const ids = await redis.zrange(keys.userAnalyses(userId), 0, limit - 1, {
+    rev: true,
+  });
   if (!ids.length) return [];
-  const analyses = await Promise.all(ids.map((id) => getAnalysis(id as string)));
+
+  const analyses = await Promise.all(
+    ids.map((id) => getAnalysis(id as string)),
+  );
   return analyses.filter(Boolean) as Analysis[];
 }
 
-export async function deleteAnalysis(id: string, userId: string): Promise<void> {
-  const r = getRedisClient();
-  const pipeline = r.pipeline();
+export async function deleteAnalysis(
+  id: string,
+  userId: string,
+): Promise<void> {
+  const pipeline = redis.pipeline();
   pipeline.del(keys.analysis(id));
   pipeline.del(keys.analysisMessages(id));
   pipeline.zrem(keys.userAnalyses(userId), id);
@@ -130,6 +134,8 @@ export function createEmptyState(): AnalysisState {
       sektor: '',
       kapsam: 'Yerel',
       mod: 'tam',
+      dil: 'tr',
+      usd_try_kur: 0,
       tarih: new Date().toISOString().split('T')[0],
       tamamlanan_moduller: [],
       aktif_modul: 'A',

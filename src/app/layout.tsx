@@ -3,7 +3,7 @@ import Providers from '@/components/Providers';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Fikir Analiz Factory v6.2',
+  title: 'Ideactory.ai v6.2',
   description: 'Startup fikirlerinizi McKinsey analitikliği, YC pragmatizmi ve Sequoia vizyonuyla analiz edin.',
 };
 

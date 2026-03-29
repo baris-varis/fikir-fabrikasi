@@ -27,7 +27,7 @@ export default function LandingPage() {
       <nav className="relative z-10 flex items-center justify-between px-6 lg:px-12 py-4">
         <div className="flex items-center gap-3">
           <Image src="/logo.png" alt="Logo" width={40} height={40} />
-          <span className="font-display font-bold text-lg tracking-tight">Fikir Analiz Factory</span>
+          <span className="font-display font-bold text-lg tracking-tight">Ideactory.ai</span>
           <span className="fab-badge-module text-[10px]">v6.2</span>
         </div>
         <div className="flex items-center gap-3">
@@ -41,7 +41,7 @@ export default function LandingPage() {
         <div className="flex justify-center mb-8">
           <Image
             src="/logo.png"
-            alt="Fikir Analiz Factory"
+            alt="Ideactory.ai"
             width={140}
             height={140}
             className="drop-shadow-2xl"
@@ -109,7 +109,7 @@ export default function LandingPage() {
 
       {/* Footer */}
       <footer className="relative z-10 border-t border-fab-border py-6 text-center text-fab-muted text-xs">
-        Fikir Analiz Factory v6.2 — Powered by Claude
+        Ideactory.ai v6.2 — Powered by Claude
       </footer>
     </div>
   );

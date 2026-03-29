@@ -12,6 +12,8 @@ export interface AnalysisMeta {
   sektor: string;
   kapsam: Kapsam;
   mod: Mod;
+  dil: 'tr' | 'en';
+  usd_try_kur: number;
   tarih: string;
   tamamlanan_moduller: string[];
   aktif_modul: string;
