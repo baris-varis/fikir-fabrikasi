@@ -141,9 +141,8 @@ export default function LandingPage() {
       <section className="relative pt-32 pb-20 lg:pt-40 lg:pb-28">
         <div className="max-w-6xl mx-auto px-6">
           <div className="max-w-3xl mx-auto text-center">
-            <div className="inline-flex items-center gap-2 bg-fab-accent/[0.08] border border-fab-accent/20 rounded-full px-4 py-1.5 mb-8">
-              <span className="w-1.5 h-1.5 rounded-full bg-fab-accent animate-pulse" />
-              <span className="text-fab-accent text-sm font-medium">{t.hero.badge}</span>
+            <div className="flex justify-center mb-8">
+              <Image src="/logo.png" alt="Ideactory.ai" width={120} height={120} className="drop-shadow-2xl" priority />
             </div>
             <h1 className="font-display font-extrabold text-4xl sm:text-5xl lg:text-6xl tracking-tight leading-[1.1] mb-6">
               {t.hero.title1}<br />
