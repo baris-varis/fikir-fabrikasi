@@ -197,6 +197,10 @@ export default function LandingPage() {
         <div className="lgl" style={{ width: 600, height: 600, background: 'rgba(37,99,235,0.06)', top: -200, left: -100 }} />
         <div className="lgl" style={{ width: 500, height: 500, background: 'rgba(124,58,237,0.04)', bottom: -150, right: -50 }} />
         <div className="lgl" style={{ width: 300, height: 300, background: 'rgba(245,158,11,0.05)', top: 100, right: 200 }} />
+        {/* Watermark logo */}
+        <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', opacity: 0.03, pointerEvents: 'none', zIndex: 0 }}>
+          <Image src="/logo.png" alt="" width={600} height={600} style={{ filter: 'grayscale(100%)' }} />
+        </div>
 
         <div className="ls" style={{ position: 'relative', zIndex: 1 }}>
           <div style={{ maxWidth: 800, margin: '0 auto', textAlign: 'center' }}>
@@ -231,8 +235,11 @@ export default function LandingPage() {
       </section>
 
       {/* How It Works */}
-      <section id="how" style={{ padding: '80px 0', background: '#f1f5f9' }}>
-        <div className="ls">
+      <section id="how" style={{ padding: '80px 0', background: '#f1f5f9', position: 'relative', overflow: 'hidden' }}>
+        <div style={{ position: 'absolute', top: '50%', right: -80, transform: 'translateY(-50%)', opacity: 0.025, pointerEvents: 'none' }}>
+          <Image src="/logo.png" alt="" width={450} height={450} style={{ filter: 'grayscale(100%)' }} />
+        </div>
+        <div className="ls" style={{ position: 'relative', zIndex: 1 }}>
           <div style={{ textAlign: 'center', marginBottom: 56 }}>
             <h2 className="ld" style={{ fontSize: 36, fontWeight: 700, marginBottom: 8 }}>{c.how.title}</h2>
             <p style={{ fontSize: 17, color: '#64748b' }}>{c.how.sub}</p>
@@ -251,8 +258,11 @@ export default function LandingPage() {
       </section>
 
       {/* Why Ideactory */}
-      <section style={{ padding: '80px 0', background: '#FAFBFE' }}>
-        <div className="ls">
+      <section style={{ padding: '80px 0', background: '#FAFBFE', position: 'relative', overflow: 'hidden' }}>
+        <div style={{ position: 'absolute', top: '50%', left: -100, transform: 'translateY(-50%)', opacity: 0.02, pointerEvents: 'none' }}>
+          <Image src="/logo.png" alt="" width={500} height={500} style={{ filter: 'grayscale(100%)' }} />
+        </div>
+        <div className="ls" style={{ position: 'relative', zIndex: 1 }}>
           <div style={{ textAlign: 'center', marginBottom: 56 }}>
             <h2 className="ld" style={{ fontSize: 36, fontWeight: 700, marginBottom: 8 }}>{c.why.title}</h2>
             <p style={{ fontSize: 17, color: '#64748b' }}>{c.why.sub}</p>
@@ -272,8 +282,11 @@ export default function LandingPage() {
       </section>
 
       {/* Documents */}
-      <section style={{ padding: '80px 0', background: '#f1f5f9' }}>
-        <div className="ls">
+      <section style={{ padding: '80px 0', background: '#f1f5f9', position: 'relative', overflow: 'hidden' }}>
+        <div style={{ position: 'absolute', bottom: -60, right: -40, opacity: 0.02, pointerEvents: 'none' }}>
+          <Image src="/logo.png" alt="" width={400} height={400} style={{ filter: 'grayscale(100%)' }} />
+        </div>
+        <div className="ls" style={{ position: 'relative', zIndex: 1 }}>
           <div style={{ textAlign: 'center', marginBottom: 48 }}>
             <h2 className="ld" style={{ fontSize: 36, fontWeight: 700, marginBottom: 8 }}>{c.docs.title}</h2>
             <p style={{ fontSize: 17, color: '#64748b' }}>{c.docs.sub}</p>
