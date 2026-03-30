@@ -8,6 +8,7 @@ import { generatePitchDeck, generateDataRoom, generateLeanCanvas } from '@/lib/d
 import { generatePitchPptx } from '@/lib/docs/generate-pptx';
 import { generateFinancialModel } from '@/lib/docs/generate-xlsx';
 import { generateTranskript } from '@/lib/docs/generate-transkript';
+import { generateDashboardHtml } from '@/lib/docs/generate-dashboard';
 
 export const maxDuration = 30;
 
@@ -18,6 +19,11 @@ interface DocType {
 }
 
 const DOC_TYPES: Record<string, DocType> = {
+  'dashboard': {
+    generator: generateDashboardHtml,
+    filename: (n) => `Dashboard_${n}.html`,
+    contentType: 'text/html; charset=utf-8',
+  },
   'exec-summary': {
     generator: generateExecSummary,
     filename: (n) => `Executive_Summary_${n}.docx`,
