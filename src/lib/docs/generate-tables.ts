@@ -448,6 +448,97 @@ export async function generateFinansal(state: any, langOverride?: 'tr' | 'en'): 
     }));
   }
 
+  // 9. HASSASİYET ANALİZİ (YENİ)
+  children.push(pageBreak());
+  children.push(h1(isTR ? 'HASS\u0130YET ANAL\u0130Z\u0130' : 'SENSITIVITY ANALYSIS'));
+  children.push(body(isTR
+    ? 'En kritik 3 de\u011Fi\u015Fkenin (churn, b\u00FCy\u00FCme, CAC) projeksiyon \u00FCzerindeki etkisi:'
+    : 'Impact of the 3 most critical variables (churn, growth, CAC) on projections:'
+  ));
+
+  const baseArr3 = parseNum(get(senaryo, 'gercekci.arr_yil3', get(senaryo, 'baz.arr_yil3', 0)));
+  const churnBase = parseNum(get(state, 'C_strateji.birim_ekonomisi.churn_aylik', 3));
+  const growthBase = parseNum(get(state, 'D_final.finansal.varsayimlar.buyume_aylik_pct', 8));
+
+  children.push(spacer(40));
+  children.push(h3(isTR ? '\u00C7apraz Etki: Churn \u00D7 B\u00FCy\u00FCme \u2192 ARR Y\u0131l 3' : 'Cross Impact: Churn \u00D7 Growth \u2192 ARR Year 3'));
+  children.push(makeTable({
+    headers: [
+      isTR ? 'Churn \\\\ B\u00FCy\u00FCme' : 'Churn \\\\ Growth',
+      `${(growthBase * 0.6).toFixed(1)}%/mo`,
+      `${growthBase.toFixed(1)}%/mo`,
+      `${(growthBase * 1.4).toFixed(1)}%/mo`,
+    ],
+    rows: [
+      [
+        `${(churnBase * 1.3).toFixed(1)}%/mo (${isTR ? 'y\u00FCksek' : 'high'})`,
+        baseArr3 > 0 ? fmtMoney(baseArr3 * 0.45) : '\u2014',
+        baseArr3 > 0 ? fmtMoney(baseArr3 * 0.7) : '\u2014',
+        baseArr3 > 0 ? fmtMoney(baseArr3 * 0.9) : '\u2014',
+      ],
+      [
+        `${churnBase.toFixed(1)}%/mo (${isTR ? 'baz' : 'base'})`,
+        baseArr3 > 0 ? fmtMoney(baseArr3 * 0.6) : '\u2014',
+        baseArr3 > 0 ? fmtMoney(baseArr3) : '\u2014',
+        baseArr3 > 0 ? fmtMoney(baseArr3 * 1.4) : '\u2014',
+      ],
+      [
+        `${(churnBase * 0.7).toFixed(1)}%/mo (${isTR ? 'd\u00FC\u015F\u00FCk' : 'low'})`,
+        baseArr3 > 0 ? fmtMoney(baseArr3 * 0.75) : '\u2014',
+        baseArr3 > 0 ? fmtMoney(baseArr3 * 1.25) : '\u2014',
+        baseArr3 > 0 ? fmtMoney(baseArr3 * 1.8) : '\u2014',
+      ],
+    ],
+    colWidths: [2800, 2118, 2118, 2318],
+  }));
+
+  children.push(spacer(40));
+  children.push(h3(isTR ? 'CAC Hassasiyeti \u2192 Payback S\u00FCresi' : 'CAC Sensitivity \u2192 Payback Period'));
+  const cacBase2 = parseNum(birimEko.cac || get(state, 'D_final.finansal.varsayimlar.cac_usd', 100));
+  const arpuBase2 = parseNum(birimEko.arpu_aylik || get(state, 'D_final.finansal.varsayimlar.arpu_usd', 50));
+  const marjBase2 = parseNum(birimEko.brut_marj || 70) / 100;
+  const paybackCalc = (c: number) => arpuBase2 * marjBase2 > 0 ? Math.round(c / (arpuBase2 * marjBase2)) : 0;
+  children.push(makeTable({
+    headers: ['CAC', `Payback (${isTR ? 'ay' : 'mo'})`, isTR ? 'Durum' : 'Status'],
+    rows: [
+      [fmtMoney(cacBase2 * 0.7), `${paybackCalc(cacBase2 * 0.7)} ${isTR ? 'ay' : 'mo'}`, paybackCalc(cacBase2 * 0.7) <= 12 ? '\uD83D\uDFE2' : '\uD83D\uDFE1'],
+      [fmtMoney(cacBase2), `${paybackCalc(cacBase2)} ${isTR ? 'ay' : 'mo'}`, paybackCalc(cacBase2) <= 18 ? '\uD83D\uDFE2' : '\uD83D\uDFE1'],
+      [fmtMoney(cacBase2 * 1.3), `${paybackCalc(cacBase2 * 1.3)} ${isTR ? 'ay' : 'mo'}`, paybackCalc(cacBase2 * 1.3) <= 18 ? '\uD83D\uDFE1' : '\uD83D\uDD34'],
+      [fmtMoney(cacBase2 * 1.6), `${paybackCalc(cacBase2 * 1.6)} ${isTR ? 'ay' : 'mo'}`, paybackCalc(cacBase2 * 1.6) <= 24 ? '\uD83D\uDFE1' : '\uD83D\uDD34'],
+    ],
+    colWidths: [3000, 3177, 3177],
+  }));
+
+  // 10. BİRİM EKONOMİSİ EVRİMİ (YENİ)
+  children.push(spacer(80));
+  children.push(h2(isTR ? 'B\u0130R\u0130M EKONOM\u0130S\u0130 EVR\u0130M\u0130 (5 YIL)' : 'UNIT ECONOMICS EVOLUTION (5 YEARS)'));
+  children.push(body(isTR
+    ? 'Birim ekonomisi metriklerinin y\u0131l baz\u0131nda beklenen geli\u015Fimi.'
+    : 'Expected progression of unit economics metrics over 5 years.'
+  ));
+
+  const churnVal = parseNum(birimEko.churn_aylik || birimEko.churn || 3);
+  const cacVal2 = parseNum(birimEko.cac || cacBase2);
+  const marjVal = parseNum(birimEko.brut_marj || 70);
+  const ltvCalc = (a: number, c: number) => c > 0 ? Math.round(a / (c / 100)) : 0;
+
+  children.push(makeTable({
+    headers: [
+      isTR ? 'Metrik' : 'Metric',
+      `${isTR ? 'Y\u0131l' : 'Y'} 1`, `${isTR ? 'Y\u0131l' : 'Y'} 2`, `${isTR ? 'Y\u0131l' : 'Y'} 3`,
+      `${isTR ? 'Y\u0131l' : 'Y'} 4`, `${isTR ? 'Y\u0131l' : 'Y'} 5`,
+      isTR ? 'Hedef' : 'Target',
+    ],
+    rows: [
+      ['CAC ($)', fmtMoney(cacVal2), fmtMoney(cacVal2 * 0.85), fmtMoney(cacVal2 * 0.72), fmtMoney(cacVal2 * 0.62), fmtMoney(cacVal2 * 0.55), '\u2193'],
+      ['ARPU/mo ($)', fmtMoney(arpuBase2), fmtMoney(arpuBase2 * 1.05), fmtMoney(arpuBase2 * 1.12), fmtMoney(arpuBase2 * 1.18), fmtMoney(arpuBase2 * 1.25), '\u2191'],
+      ['Churn/mo (%)', fmtPct(churnVal), fmtPct(churnVal * 0.85), fmtPct(churnVal * 0.72), fmtPct(churnVal * 0.62), fmtPct(churnVal * 0.55), '< 3%'],
+      ['LTV ($)', fmtMoney(ltvCalc(arpuBase2, churnVal)), fmtMoney(ltvCalc(arpuBase2 * 1.05, churnVal * 0.85)), fmtMoney(ltvCalc(arpuBase2 * 1.12, churnVal * 0.72)), fmtMoney(ltvCalc(arpuBase2 * 1.18, churnVal * 0.62)), fmtMoney(ltvCalc(arpuBase2 * 1.25, churnVal * 0.55)), '> 3\u00D7 CAC'],
+      [`${isTR ? 'Br\u00FCt Marj' : 'Gross Margin'} (%)`, fmtPct(marjVal), fmtPct(Math.min(marjVal + 3, 95)), fmtPct(Math.min(marjVal + 5, 95)), fmtPct(Math.min(marjVal + 7, 95)), fmtPct(Math.min(marjVal + 8, 95)), '> 70%'],
+    ],
+    colWidths: [1600, 1300, 1300, 1300, 1300, 1300, 1254],
+  }));
+
   return packDoc(createDocument({ companyName: fikir, docType: isTR ? 'Finansal Projeksiyon' : 'Financial Projections', date: tarih, lang, children }));
 }
 
@@ -578,6 +669,48 @@ export async function generateGTM(state: any, langOverride?: 'tr' | 'en'): Promi
       [isTR ? 'Br\u00FCt Marj' : 'Gross Margin', fmtPct(birimEko.brut_marj), '>60%'],
     ],
     colWidths: [2500, 3427, 3427],
+  }));
+
+  // 9. 12 AY BÜYÜME HEDEFLERİ (YENİ)
+  children.push(pageBreak());
+  children.push(h1(isTR ? '12 AY B\u00DCY\u00DCME HEDEFLER\u0130' : '12-MONTH GROWTH MILESTONES'));
+  children.push(body(isTR
+    ? 'Ayl\u0131k milestone tablosu \u2014 m\u00FC\u015Fteri edinimi, gelir ve ana odak alanlar\u0131.'
+    : 'Monthly milestone table \u2014 customer acquisition, revenue and key focus areas.'
+  ));
+
+  const birimArpu = parseNum(birimEko.arpu_aylik || birimEko.arpu_usd || 50);
+  const birimGrowth = parseNum(birimEko.buyume_aylik || 8);
+  const monthRows: string[][] = [];
+  let cumCustomers = 10;
+  for (let m = 1; m <= 12; m++) {
+    const newC = Math.max(1, Math.round(cumCustomers * birimGrowth / 100));
+    cumCustomers += newC;
+    const mrr = cumCustomers * birimArpu;
+    let focus = '';
+    let kanal = '';
+    if (m <= 3) { focus = isTR ? 'MVP & Validasyon' : 'MVP & Validation'; kanal = isTR ? 'Organik + A\u011F' : 'Organic + Network'; }
+    else if (m <= 6) { focus = isTR ? 'PMF & Optimizasyon' : 'PMF & Optimization'; kanal = isTR ? '\u0130\u00E7erik + SEO' : 'Content + SEO'; }
+    else if (m <= 9) { focus = isTR ? '\u00D6l\u00E7eklendirme' : 'Scaling'; kanal = isTR ? '\u00DCcretli + Referral' : 'Paid + Referral'; }
+    else { focus = isTR ? 'B\u00FCy\u00FCme & Genişleme' : 'Growth & Expansion'; kanal = isTR ? 'Çoklu kanal' : 'Multi-channel'; }
+    monthRows.push([
+      `${isTR ? 'Ay' : 'M'} ${m}`,
+      String(cumCustomers),
+      fmtMoney(mrr),
+      focus,
+      kanal,
+    ]);
+  }
+  children.push(makeTable({
+    headers: [
+      isTR ? 'Ay' : 'Month',
+      isTR ? 'M\u00FC\u015Fteri' : 'Customers',
+      'MRR ($)',
+      isTR ? 'Ana Odak' : 'Focus',
+      isTR ? 'Kanal' : 'Channel',
+    ],
+    rows: monthRows,
+    colWidths: [1000, 1400, 1600, 2477, 2877],
   }));
 
   return packDoc(createDocument({ companyName: fikir, docType: isTR ? 'GTM Plan\u0131' : 'GTM Plan', date: tarih, lang, children }));

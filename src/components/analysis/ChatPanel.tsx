@@ -39,10 +39,7 @@ const markdownComponents = {
   },
 };
 
-// ─── 13 DOKÜMAN BUTONU ──────────────────────────────────
-
 const DOC_BUTTONS: { label: string; type: string; ext: string; icon: string; category: 'investor' | 'tablo' | 'arsiv' }[] = [
-  // Investor Package
   { label: 'Executive Summary', type: 'exec-summary', ext: '.docx', icon: '📋', category: 'investor' },
   { label: 'Detaylı Exec Summary', type: 'detailed-exec', ext: '.docx', icon: '📑', category: 'investor' },
   { label: 'Investment Teaser', type: 'teaser', ext: '.docx', icon: '💌', category: 'investor' },
@@ -51,12 +48,10 @@ const DOC_BUTTONS: { label: string; type: string; ext: string; icon: string; cat
   { label: 'Finansal Model', type: 'finansal-xlsx', ext: '.xlsx', icon: '📊', category: 'investor' },
   { label: 'Data Room Checklist', type: 'data-room', ext: '.docx', icon: '🗂️', category: 'investor' },
   { label: 'Lean Canvas', type: 'lean-canvas', ext: '.docx', icon: '🧩', category: 'investor' },
-  // Detaylı Tablolar
   { label: 'Rekabet Raporu', type: 'rekabet', ext: '.docx', icon: '⚔️', category: 'tablo' },
   { label: 'Risk Matrisi', type: 'risk', ext: '.docx', icon: '⚠️', category: 'tablo' },
   { label: 'Finansal Projeksiyon', type: 'finansal-docx', ext: '.docx', icon: '💰', category: 'tablo' },
   { label: 'GTM Planı', type: 'gtm', ext: '.docx', icon: '🚀', category: 'tablo' },
-  // Arşiv
   { label: 'Yazışma Transkripti', type: 'transkript', ext: '.docx', icon: '💬', category: 'arsiv' },
 ];
 
@@ -75,11 +70,12 @@ export default function ChatPanel({ messages, streamContent, isStreaming, onSend
   const [downloading, setDownloading] = useState<string | null>(null);
   const [downloadStatus, setDownloadStatus] = useState<Record<string, 'success' | 'error'>>({});
   const [showDocs, setShowDocs] = useState(false);
+  const [docLang, setDocLang] = useState<'tr' | 'en'>('tr');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const cleanedStream = useMemo(() => cleanDisplayText(streamContent), [streamContent]);
 
-  async function handleDownload(docType: string, filename: string) {
+  async function handleDownload(docType: string, filename: string, lang?: 'tr' | 'en') {
     if (!analysisId || downloading) return;
     setDownloading(docType);
     setDownloadStatus((prev) => { const next = { ...prev }; delete next[docType]; return next; });
@@ -87,7 +83,7 @@ export default function ChatPanel({ messages, streamContent, isStreaming, onSend
       const res = await fetch('/api/generate-doc', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ analysisId, docType }),
+        body: JSON.stringify({ analysisId, docType, lang: lang || docLang }),
       });
       if (!res.ok) throw new Error('Failed');
       const blob = await res.blob();
@@ -123,7 +119,6 @@ export default function ChatPanel({ messages, streamContent, isStreaming, onSend
         <div ref={messagesEndRef} />
       </div>
 
-      {/* ─── INPUT + DOKÜMAN ALANI ─────────────────────── */}
       <div className="border-t border-fab-border p-4">
         <form onSubmit={handleSubmit} className="flex items-end gap-3">
           <div className="flex-1 relative">
@@ -145,18 +140,15 @@ export default function ChatPanel({ messages, streamContent, isStreaming, onSend
           )}
         </form>
 
-        {/* Hızlı komutlar + Doküman butonları */}
         {messages.length > 0 && !isStreaming && (
           <div className="mt-2 space-y-2">
-            {/* Hızlı komutlar */}
             <div className="flex flex-wrap gap-1.5">
-              {['devam', 'state göster'].map((cmd) => (
+              {['devam', 'karşılaştır', 'state göster'].map((cmd) => (
                 <button key={cmd} onClick={() => onSend(cmd)} className="text-[11px] text-fab-muted hover:text-fab-accent border border-fab-border/50 rounded-md px-2 py-1 hover:border-fab-accent/30 transition-colors">{cmd}</button>
               ))}
             </div>
 
-            {/* Doküman İndirme Paneli */}
-            {showDocSection && (
+            {showDocSection ? (
               <>
                 <div className="w-full h-px bg-fab-border/30" />
                 <button
@@ -168,58 +160,46 @@ export default function ChatPanel({ messages, streamContent, isStreaming, onSend
                   <span className="text-fab-muted">{showDocs ? '▲' : '▼'}</span>
                 </button>
 
-                {showDocs && (
+                {showDocs ? (
                   <div className="space-y-3 animate-in slide-in-from-top-2 duration-200">
-                    {/* Investor Package */}
+                    <div className="flex items-center justify-between">
+                      <div className="text-[10px] text-fab-muted font-medium uppercase tracking-wider">Doküman Dili</div>
+                      <div className="flex rounded-md border border-fab-border/50 overflow-hidden">
+                        <button onClick={() => setDocLang('tr')} className={`text-[10px] px-3 py-1 font-medium transition-colors ${docLang === 'tr' ? 'bg-fab-accent/20 text-fab-accent' : 'text-fab-muted hover:text-fab-text'}`}>TR</button>
+                        <button onClick={() => setDocLang('en')} className={`text-[10px] px-3 py-1 font-medium transition-colors ${docLang === 'en' ? 'bg-fab-accent/20 text-fab-accent' : 'text-fab-muted hover:text-fab-text'}`}>EN</button>
+                      </div>
+                    </div>
+
                     <DocSection title="Investor Package">
                       {DOC_BUTTONS.filter(d => d.category === 'investor').map((doc) => (
-                        <DocButton
-                          key={doc.type}
-                          doc={doc}
-                          downloading={downloading}
-                          status={downloadStatus[doc.type]}
-                          onDownload={() => handleDownload(doc.type, `${doc.label}${doc.ext}`)}
-                        />
+                        <DocButton key={doc.type} doc={doc} downloading={downloading} status={downloadStatus[doc.type]}
+                          onDownload={() => handleDownload(doc.type, `${doc.label}${docLang === 'en' ? '_EN' : ''}${doc.ext}`, docLang)} />
                       ))}
                     </DocSection>
 
-                    {/* Detaylı Tablolar */}
                     <DocSection title="Detaylı Tablo Dokümanları">
                       {DOC_BUTTONS.filter(d => d.category === 'tablo').map((doc) => (
-                        <DocButton
-                          key={doc.type}
-                          doc={doc}
-                          downloading={downloading}
-                          status={downloadStatus[doc.type]}
-                          onDownload={() => handleDownload(doc.type, `${doc.label}${doc.ext}`)}
-                        />
+                        <DocButton key={doc.type} doc={doc} downloading={downloading} status={downloadStatus[doc.type]}
+                          onDownload={() => handleDownload(doc.type, `${doc.label}${docLang === 'en' ? '_EN' : ''}${doc.ext}`, docLang)} />
                       ))}
                     </DocSection>
 
-                    {/* Arşiv */}
                     <DocSection title="Arşiv">
                       {DOC_BUTTONS.filter(d => d.category === 'arsiv').map((doc) => (
-                        <DocButton
-                          key={doc.type}
-                          doc={doc}
-                          downloading={downloading}
-                          status={downloadStatus[doc.type]}
-                          onDownload={() => handleDownload(doc.type, `${doc.label}${doc.ext}`)}
-                        />
+                        <DocButton key={doc.type} doc={doc} downloading={downloading} status={downloadStatus[doc.type]}
+                          onDownload={() => handleDownload(doc.type, `${doc.label}${docLang === 'en' ? '_EN' : ''}${doc.ext}`, docLang)} />
                       ))}
                     </DocSection>
                   </div>
-                )}
+                ) : null}
               </>
-            )}
+            ) : null}
           </div>
         )}
       </div>
     </div>
   );
 }
-
-// ─── Alt Bileşenler ──────────────────────────────────────
 
 function DocSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -236,8 +216,8 @@ function DocButton({ doc, downloading, status, onDownload }: {
   status?: 'success' | 'error';
   onDownload: () => void;
 }) {
-  const isDownloading = downloading === doc.type;
-  const isDisabled = downloading !== null;
+  const isDownloading: boolean = downloading === doc.type;
+  const isDisabled: boolean = downloading !== null;
 
   return (
     <button
@@ -270,7 +250,7 @@ function MessageBubble({ message }: { message: ChatMessage }) {
         <div className={`inline-block text-left rounded-2xl px-4 py-3 max-w-full ${isUser ? 'bg-fab-accent/10 text-fab-text' : 'bg-fab-card border border-fab-border'}`}>
           {isUser ? (<p className="text-sm whitespace-pre-wrap">{message.content}</p>) : (<div className="chat-markdown text-sm text-fab-text/90"><ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>{cleanedContent}</ReactMarkdown></div>)}
         </div>
-        {message.checkpoint && (<div className="mt-2 inline-flex items-center gap-1.5 text-fab-success text-xs"><span>✅</span><span>Checkpoint — Modül {message.module}</span></div>)}
+        {message.checkpoint ? (<div className="mt-2 inline-flex items-center gap-1.5 text-fab-success text-xs"><span>✅</span><span>Checkpoint — Modül {message.module}</span></div>) : null}
       </div>
     </div>
   );
