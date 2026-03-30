@@ -6,5 +6,6 @@ export const config = {
     '/new/:path*',
     '/api/analyses/:path*',
     '/api/analyze/:path*',
+    '/api/generate-doc/:path*',
   ],
 };

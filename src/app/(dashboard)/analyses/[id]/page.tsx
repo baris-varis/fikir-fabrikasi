@@ -100,6 +100,7 @@ export default function AnalysisPage() {
             onSend={sendMessage}
             onStop={stopStreaming}
             activeModule={analysis.state.meta.aktif_modul}
+            analysisId={analysis.id}
           />
         </div>
 
