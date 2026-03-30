@@ -7,7 +7,6 @@ const anthropic = new Anthropic({
 });
 
 // ─── Web Search Tool Definition ─────────────────────────
-// Anthropic API built-in web search — SDK tipleri henüz güncel olmayabilir
 
 const WEB_SEARCH_TOOL = {
   type: 'web_search_20250305',
@@ -26,7 +25,6 @@ export function parseStateUpdate(content: string): {
   let stateUpdate: Partial<AnalysisState> | null = null;
   const hasCheckpoint = content.includes('[CHECKPOINT]');
 
-  // Extract state_update JSON block
   const stateMatch = content.match(/```state_update\s*([\s\S]*?)```/);
   if (stateMatch) {
     try {
@@ -37,9 +35,7 @@ export function parseStateUpdate(content: string): {
     }
   }
 
-  // Clean up checkpoint marker from displayed text
   text = text.replace('[CHECKPOINT]', '').trim();
-
   return { text, stateUpdate, hasCheckpoint };
 }
 
@@ -79,20 +75,23 @@ export function detectCommand(message: string): string | null {
 }
 
 // ─── Build message history for Claude ───────────────────
+// Son 10 mesaj — token limiti koruma
 
 function buildMessages(
   history: ChatMessage[],
   newMessage: string,
 ): Array<{ role: 'user' | 'assistant'; content: string }> {
-  const recent = history.slice(-20);
+  // Max 10 messages to stay well under 30K input token/min limit
+  const recent = history.slice(-10);
 
   const messages: Array<{ role: 'user' | 'assistant'; content: string }> = [];
 
   for (const msg of recent) {
-    messages.push({
-      role: msg.role,
-      content: msg.content,
-    });
+    // Truncate very long assistant messages to save tokens
+    const content = msg.role === 'assistant' && msg.content.length > 3000
+      ? msg.content.substring(0, 3000) + '\n\n[...kısaltıldı...]'
+      : msg.content;
+    messages.push({ role: msg.role, content });
   }
 
   messages.push({ role: 'user', content: newMessage });
@@ -110,20 +109,28 @@ export async function* streamAnalysis(
   const systemPrompt = buildSystemPrompt(state, moduleContext);
   const messages = buildMessages(history, userMessage);
 
-  const stream = anthropic.messages.stream({
-    model: 'claude-sonnet-4-20250514',
-    max_tokens: 16384,
-    system: systemPrompt,
-    messages,
-    tools: [WEB_SEARCH_TOOL],
-  });
+  try {
+    const stream = anthropic.messages.stream({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 12000,
+      system: systemPrompt,
+      messages,
+      tools: [WEB_SEARCH_TOOL],
+    });
 
-  for await (const event of stream) {
-    if (
-      event.type === 'content_block_delta' &&
-      event.delta.type === 'text_delta'
-    ) {
-      yield event.delta.text;
+    for await (const event of stream) {
+      if (
+        event.type === 'content_block_delta' &&
+        event.delta.type === 'text_delta'
+      ) {
+        yield event.delta.text;
+      }
+    }
+  } catch (error: any) {
+    if (error?.status === 429) {
+      yield '\n\n⏳ Rate limit aşıldı — 60 saniye bekleyip tekrar deneyin.\n';
+    } else {
+      throw error;
     }
   }
 }
@@ -141,7 +148,7 @@ export async function runAnalysis(
 
   const response = await anthropic.messages.create({
     model: 'claude-sonnet-4-20250514',
-    max_tokens: 16384,
+    max_tokens: 12000,
     system: systemPrompt,
     messages,
     tools: [WEB_SEARCH_TOOL],
