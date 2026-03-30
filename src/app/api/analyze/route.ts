@@ -14,7 +14,7 @@ import {
 import { ChatMessage } from '@/types';
 import { nanoid } from 'nanoid';
 
-export const maxDuration = 60; // Vercel function timeout
+export const maxDuration = 300; // Vercel Pro: max 300s for streaming + web search
 
 export async function POST(req: NextRequest) {
   const session = await auth();
@@ -97,7 +97,6 @@ export async function POST(req: NextRequest) {
           message,
         )) {
           fullResponse += chunk;
-          // Send chunk to client
           const data = JSON.stringify({ type: 'text', content: chunk });
           controller.enqueue(encoder.encode(`data: ${data}\n\n`));
         }
@@ -106,7 +105,6 @@ export async function POST(req: NextRequest) {
         const { text, stateUpdate, hasCheckpoint } =
           parseStateUpdate(fullResponse);
 
-        // Build assistant message (store cleaned text)
         const assistantMsg: ChatMessage = {
           id: nanoid(),
           role: 'assistant',
@@ -116,20 +114,12 @@ export async function POST(req: NextRequest) {
           checkpoint: hasCheckpoint,
         };
 
-        // Save messages
         await addMessages(analysisId, [userMsg, assistantMsg]);
 
-        // Merge and save state if updated
         if (stateUpdate) {
           const newState = mergeState(analysis.state, stateUpdate);
           await updateAnalysisState(analysisId, newState);
 
-          // Also update analysis status if D module completed
-          if (newState.meta.tamamlanan_moduller.includes('D')) {
-            // Mark as completed (could also save to redis)
-          }
-
-          // Send state update to client
           const stateData = JSON.stringify({
             type: 'state_update',
             state: newState,
@@ -137,7 +127,6 @@ export async function POST(req: NextRequest) {
           controller.enqueue(encoder.encode(`data: ${stateData}\n\n`));
         }
 
-        // Send checkpoint signal
         if (hasCheckpoint) {
           const cpData = JSON.stringify({
             type: 'checkpoint',
@@ -146,7 +135,6 @@ export async function POST(req: NextRequest) {
           controller.enqueue(encoder.encode(`data: ${cpData}\n\n`));
         }
 
-        // Done
         const doneData = JSON.stringify({ type: 'done' });
         controller.enqueue(encoder.encode(`data: ${doneData}\n\n`));
         controller.close();
