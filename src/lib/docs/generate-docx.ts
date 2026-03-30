@@ -1,345 +1,326 @@
 import {
   Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell,
-  WidthType, AlignmentType, BorderStyle, HeadingLevel,
-  ShadingType, Header, Footer, PageNumber, NumberFormat,
+  WidthType, AlignmentType, HeadingLevel, ShadingType, Header, Footer,
 } from 'docx';
 import { AnalysisState } from '@/types';
 
-const COLORS = {
-  primary: '1E3A5F',
-  accent: '2563EB',
-  success: '16A34A',
-  warning: 'D97706',
-  danger: 'DC2626',
-  text: '1F2937',
-  muted: '6B7280',
-  light: 'F8FAFC',
-};
+const C = { primary: '1E3A5F', accent: '2563EB', success: '16A34A', warning: 'D97706', danger: 'DC2626', text: '1F2937', muted: '6B7280' };
 
-function heading(text: string, level: typeof HeadingLevel[keyof typeof HeadingLevel] = HeadingLevel.HEADING_1) {
-  return new Paragraph({ heading: level, spacing: { before: 300, after: 150 }, children: [new TextRun({ text, color: COLORS.primary, bold: true })] });
+// ─── Helpers ────────────────────────────────────────────
+// Deep get any nested value with fallback
+function dig(obj: Record<string, unknown>, ...paths: string[]): string {
+  for (const path of paths) {
+    const val = path.split('.').reduce((o: unknown, k) => (o && typeof o === 'object' ? (o as Record<string, unknown>)[k] : undefined), obj);
+    if (val !== undefined && val !== null && val !== '') {
+      if (typeof val === 'object') return JSON.stringify(val);
+      return String(val);
+    }
+  }
+  return '—';
 }
 
-function para(text: string, opts?: { bold?: boolean; color?: string; size?: number; spacing?: number }) {
-  return new Paragraph({
-    spacing: { after: opts?.spacing ?? 120 },
-    children: [new TextRun({ text, bold: opts?.bold, color: opts?.color ?? COLORS.text, size: opts?.size ?? 21 })],
-  });
+function digArr(obj: Record<string, unknown>, ...paths: string[]): string[] {
+  for (const path of paths) {
+    const val = path.split('.').reduce((o: unknown, k) => (o && typeof o === 'object' ? (o as Record<string, unknown>)[k] : undefined), obj);
+    if (Array.isArray(val) && val.length > 0) return val.map(v => typeof v === 'string' ? v : JSON.stringify(v));
+  }
+  return [];
 }
 
-function tableCellP(text: string, bold = false, color = COLORS.text) {
-  return new TableCell({
-    children: [new Paragraph({ children: [new TextRun({ text, bold, color, size: 19 })] })],
-    margins: { top: 40, bottom: 40, left: 80, right: 80 },
-  });
+function digArrObj(obj: Record<string, unknown>, ...paths: string[]): Record<string, unknown>[] {
+  for (const path of paths) {
+    const val = path.split('.').reduce((o: unknown, k) => (o && typeof o === 'object' ? (o as Record<string, unknown>)[k] : undefined), obj);
+    if (Array.isArray(val) && val.length > 0) return val as Record<string, unknown>[];
+  }
+  return [];
 }
 
-function headerCell(text: string) {
-  return new TableCell({
-    children: [new Paragraph({ children: [new TextRun({ text, bold: true, color: 'FFFFFF', size: 19 })] })],
-    shading: { type: ShadingType.SOLID, color: COLORS.primary },
-    margins: { top: 40, bottom: 40, left: 80, right: 80 },
-  });
+function h(text: string, level = HeadingLevel.HEADING_1) {
+  return new Paragraph({ heading: level, spacing: { before: 300, after: 150 }, children: [new TextRun({ text, color: C.primary, bold: true })] });
 }
-
-function makeHeader(leftText: string, rightText: string) {
-  return new Header({
-    children: [new Paragraph({
-      children: [
-        new TextRun({ text: leftText, size: 16, color: COLORS.muted }),
-        new TextRun({ text: '    |    ', size: 16, color: COLORS.muted }),
-        new TextRun({ text: rightText, size: 16, color: COLORS.muted }),
-      ],
-    })],
-  });
+function p(text: string, opts?: { bold?: boolean; color?: string; size?: number }) {
+  return new Paragraph({ spacing: { after: 120 }, children: [new TextRun({ text, bold: opts?.bold, color: opts?.color ?? C.text, size: opts?.size ?? 21 })] });
 }
-
-function makeFooter() {
-  return new Footer({
-    children: [new Paragraph({
-      alignment: AlignmentType.LEFT,
-      children: [
-        new TextRun({ text: 'Gizli — Yalnızca yatırımcı değerlendirmesi içindir', size: 14, color: COLORS.muted, italics: true }),
-      ],
-    })],
-  });
+function tc(text: string, bold = false) {
+  return new TableCell({ children: [new Paragraph({ children: [new TextRun({ text, bold, size: 19 })] })], margins: { top: 40, bottom: 40, left: 80, right: 80 } });
 }
-
-function legalDisclaimer() {
-  return [
-    heading('Yasal Uyarı', HeadingLevel.HEADING_2),
-    para('Bu doküman yalnızca bilgilendirme amaçlıdır ve yatırım tavsiyesi niteliği taşımaz. İleriye dönük tahminler içermektedir; gerçek sonuçlar öngörülenlerden önemli ölçüde farklılık gösterebilir. Yatırım kararı vermeden önce bağımsız profesyonel danışmanlık alınması önerilir. Tüm finansal projeksiyonlar varsayımlara dayalıdır ve garanti niteliğinde değildir.', { size: 18, color: COLORS.muted }),
-  ];
+function th(text: string) {
+  return new TableCell({ children: [new Paragraph({ children: [new TextRun({ text, bold: true, color: 'FFFFFF', size: 19 })] })], shading: { type: ShadingType.SOLID, color: C.primary }, margins: { top: 40, bottom: 40, left: 80, right: 80 } });
+}
+function mkHeader(left: string, right: string) {
+  return new Header({ children: [new Paragraph({ children: [new TextRun({ text: `${left}  |  ${right}`, size: 16, color: C.muted })] })] });
+}
+function mkFooter() {
+  return new Footer({ children: [new Paragraph({ alignment: AlignmentType.LEFT, children: [new TextRun({ text: 'Gizli — Yalnızca yatırımcı değerlendirmesi içindir', size: 14, color: C.muted, italics: true })] })] });
+}
+function legal() {
+  return [h('Yasal Uyarı', HeadingLevel.HEADING_2), p('Bu doküman yalnızca bilgilendirme amaçlıdır ve yatırım tavsiyesi niteliği taşımaz. İleriye dönük tahminler içermektedir; gerçek sonuçlar öngörülenlerden önemli ölçüde farklılık gösterebilir.', { size: 18, color: C.muted })];
+}
+function mkDoc(name: string, docType: string, children: (Paragraph | Table)[]) {
+  return new Document({ sections: [{ headers: { default: mkHeader(name, docType) }, footers: { default: mkFooter() }, children: [...children, ...legal()] }] });
 }
 
 // ─── EXECUTIVE SUMMARY ──────────────────────────────────
-
 export async function generateExecSummary(state: AnalysisState): Promise<Buffer> {
-  const { meta, A_pazar: a, B_rekabet: b, C_strateji: c, D_final: d } = state;
+  const s = state as unknown as Record<string, unknown>;
+  const meta = state.meta;
+  const name = meta.fikir_adi || 'Startup';
 
-  const doc = new Document({
-    sections: [{
-      headers: { default: makeHeader(meta.fikir_adi || 'Analiz', 'Executive Summary') },
-      footers: { default: makeFooter() },
-      children: [
-        // Header
-        new Paragraph({ spacing: { after: 60 }, children: [new TextRun({ text: (meta.fikir_adi || 'Startup').toUpperCase(), bold: true, size: 32, color: COLORS.primary })] }),
-        new Paragraph({ spacing: { after: 200 }, children: [new TextRun({ text: b?.uvp || a?.uvp || '', italics: true, size: 22, color: COLORS.accent })] }),
+  const children: (Paragraph | Table)[] = [
+    new Paragraph({ spacing: { after: 60 }, children: [new TextRun({ text: name.toUpperCase(), bold: true, size: 32, color: C.primary })] }),
+    new Paragraph({ spacing: { after: 200 }, children: [new TextRun({ text: dig(s, 'B_rekabet.uvp', 'A_pazar.uvp', 'A_pazar.lean_canvas.unique_value', 'A_pazar.lean_canvas.value_prop'), italics: true, size: 22, color: C.accent })] }),
 
-        // Problem & Fırsat
-        heading('Problem & Fırsat', HeadingLevel.HEADING_2),
-        para(a?.problem || 'Belirtilmemiş'),
+    h('Problem & Fırsat', HeadingLevel.HEADING_2),
+    p(dig(s, 'A_pazar.problem', 'A_pazar.lean_canvas.problem')),
 
-        // Çözüm
-        heading('Çözüm', HeadingLevel.HEADING_2),
-        para(a?.cozum || 'Belirtilmemiş'),
+    h('Çözüm', HeadingLevel.HEADING_2),
+    p(dig(s, 'A_pazar.cozum', 'A_pazar.lean_canvas.cozum', 'A_pazar.lean_canvas.solution')),
 
-        // Pazar
-        heading('Pazar Fırsatı', HeadingLevel.HEADING_2),
-        new Table({
-          width: { size: 100, type: WidthType.PERCENTAGE },
-          rows: [
-            new TableRow({ children: [headerCell('Metrik'), headerCell('Değer')] }),
-            new TableRow({ children: [tableCellP('TAM (TR)'), tableCellP(a?.tam_tr || '—')] }),
-            new TableRow({ children: [tableCellP('SAM'), tableCellP(a?.sam || '—')] }),
-            new TableRow({ children: [tableCellP('SOM (3Y)'), tableCellP(a?.som_3yil || '—')] }),
-            new TableRow({ children: [tableCellP('CAGR'), tableCellP(a?.cagr_tr || '—')] }),
-          ],
-        }),
+    h('Hedef Kitle', HeadingLevel.HEADING_2),
+    p(dig(s, 'A_pazar.hedef_kitle', 'A_pazar.lean_canvas.customer_segments', 'A_pazar.lean_canvas.segments')),
 
-        // İş Modeli
-        heading('İş Modeli', HeadingLevel.HEADING_2),
-        para(c?.is_modeli?.tip || a?.is_modeli_ozet || 'Belirtilmemiş'),
+    h('Pazar Fırsatı', HeadingLevel.HEADING_2),
+    new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows: [
+      new TableRow({ children: [th('Metrik'), th('Değer')] }),
+      new TableRow({ children: [tc('TAM'), tc(dig(s, 'A_pazar.tam_tr', 'A_pazar.tam'))] }),
+      new TableRow({ children: [tc('SAM'), tc(dig(s, 'A_pazar.sam'))] }),
+      new TableRow({ children: [tc('SOM (3Y)'), tc(dig(s, 'A_pazar.som_3yil', 'A_pazar.som_3y'))] }),
+      new TableRow({ children: [tc('CAGR'), tc(dig(s, 'A_pazar.cagr_tr', 'A_pazar.cagr'))] }),
+    ]}),
 
-        // Rekabet Avantajı
-        heading('Rekabet Avantajı', HeadingLevel.HEADING_2),
-        para(`Moat: ${b?.moat_tipi || '—'} | UVP: ${b?.uvp || '—'}`),
+    h('İş Modeli', HeadingLevel.HEADING_2),
+    p(dig(s, 'C_strateji.is_modeli.tip', 'A_pazar.is_modeli_ozet', 'A_pazar.is_modeli')),
 
-        // Finansal
-        heading('Finansal Hedefler', HeadingLevel.HEADING_2),
-        ...(d?.finansal?.projeksiyon_yillik?.length ? [
-          new Table({
-            width: { size: 100, type: WidthType.PERCENTAGE },
-            rows: [
-              new TableRow({ children: [headerCell(''), headerCell('Yıl 1'), headerCell('Yıl 3'), headerCell('Yıl 5')] }),
-              new TableRow({
-                children: [
-                  tableCellP('ARR', true),
-                  tableCellP(d.finansal.projeksiyon_yillik[0]?.arr_tl || '—'),
-                  tableCellP(d.finansal.projeksiyon_yillik[2]?.arr_tl || '—'),
-                  tableCellP(d.finansal.projeksiyon_yillik[4]?.arr_tl || '—'),
-                ],
-              }),
-              new TableRow({
-                children: [
-                  tableCellP('Müşteri', true),
-                  tableCellP(String(d.finansal.projeksiyon_yillik[0]?.musteri || '—')),
-                  tableCellP(String(d.finansal.projeksiyon_yillik[2]?.musteri || '—')),
-                  tableCellP(String(d.finansal.projeksiyon_yillik[4]?.musteri || '—')),
-                ],
-              }),
-            ],
-          }),
-        ] : [para('Finansal projeksiyon henüz tamamlanmadı.')]),
+    h('Rekabet Avantajı', HeadingLevel.HEADING_2),
+    p(`UVP: ${dig(s, 'B_rekabet.uvp', 'A_pazar.uvp')}`),
+    p(`Moat: ${dig(s, 'B_rekabet.moat_tipi', 'B_rekabet.moat.tip')} — ${dig(s, 'B_rekabet.moat_suresi', 'B_rekabet.moat.sure')}`),
 
-        // Yatırım Talebi
-        heading('Yatırım Talebi', HeadingLevel.HEADING_2),
-        ...(d?.finansal?.fonlama?.length ? d.finansal.fonlama.map(f =>
-          para(`${f.tur}: ${f.tutar} — ${f.kullanim}`)
-        ) : [para('Fonlama planı henüz tamamlanmadı.')]),
+    h('Finansal Hedefler', HeadingLevel.HEADING_2),
+    p(dig(s, 'D_final.yonetici_ozeti', 'D_final.finansal_projeksiyon')),
 
-        // Skor
-        heading('Değerlendirme', HeadingLevel.HEADING_2),
-        para(`Final Skor: ${meta.final_skor}/100 → ${meta.karar}`, { bold: true, color: meta.karar === 'GO' ? COLORS.success : meta.karar === 'NO-GO' ? COLORS.danger : COLORS.warning }),
+    h('Değerlendirme', HeadingLevel.HEADING_2),
+    p(`Final Skor: ${meta.final_skor}/100 → ${meta.karar}`, { bold: true, color: String(meta.karar).includes('GO') && !String(meta.karar).includes('NO') ? C.success : C.danger }),
+  ];
 
-        ...legalDisclaimer(),
-      ],
-    }],
-  });
+  // Fonlama
+  const fonlama = dig(s, 'D_final.fonlama', 'D_final.finansal.fonlama');
+  if (fonlama !== '—') {
+    children.push(h('Fonlama Planı', HeadingLevel.HEADING_2));
+    children.push(p(fonlama));
+  }
 
-  return Buffer.from(await Packer.toBuffer(doc));
+  return Buffer.from(await Packer.toBuffer(mkDoc(name, 'Executive Summary', children)));
 }
 
 // ─── REKABET RAPORU ─────────────────────────────────────
-
 export async function generateRekabeDocx(state: AnalysisState): Promise<Buffer> {
-  const { meta, B_rekabet: b } = state;
+  const s = state as unknown as Record<string, unknown>;
+  const name = state.meta.fikir_adi || 'Analiz';
   const children: (Paragraph | Table)[] = [
-    new Paragraph({ children: [new TextRun({ text: `${meta.fikir_adi} — Rekabet Analizi`, bold: true, size: 32, color: COLORS.primary })] }),
+    new Paragraph({ children: [new TextRun({ text: `${name} — Rekabet Analizi`, bold: true, size: 32, color: C.primary })] }),
     new Paragraph({ spacing: { after: 200 }, children: [] }),
-
-    heading('Doğrudan Rakipler', HeadingLevel.HEADING_2),
   ];
 
-  if (b?.rakipler?.length) {
-    children.push(new Table({
-      width: { size: 100, type: WidthType.PERCENTAGE },
-      rows: [
-        new TableRow({ children: [headerCell('Rakip'), headerCell('Fonlama'), headerCell('Güçlü Yön'), headerCell('Zayıf Yön'), headerCell('Tehdit')] }),
-        ...b.rakipler.map(r => new TableRow({
-          children: [tableCellP(r.ad, true), tableCellP(r.fonlama), tableCellP(r.guclu_yon), tableCellP(r.zayif_yon), tableCellP(r.tehdit)],
-        })),
-      ],
-    }));
+  // Rakipler
+  const rakipler = digArrObj(s, 'B_rekabet.rakipler', 'B_rekabet.dogrudan_rakipler');
+  if (rakipler.length > 0) {
+    children.push(h('Doğrudan Rakipler', HeadingLevel.HEADING_2));
+    const headerRow = new TableRow({ children: [th('Rakip'), th('Fonlama'), th('Güçlü Yön'), th('Zayıf Yön'), th('Tehdit')] });
+    const dataRows = rakipler.map(r => new TableRow({ children: [
+      tc(String(r.ad || r.name || '—'), true),
+      tc(String(r.fonlama || r.kurulusfonlama || r.kullanici_mrr || '—')),
+      tc(String(r.guclu_yon || r.guclu_yan || r.strengths || '—')),
+      tc(String(r.zayif_yon || r.zayif_yan || r.weaknesses || '—')),
+      tc(String(r.tehdit || r.threat || '—')),
+    ]}));
+    children.push(new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows: [headerRow, ...dataRows] }));
+  }
+
+  // Dolaylı rakipler
+  const dolayli = digArr(s, 'B_rekabet.dolyli_rakipler', 'B_rekabet.dolayli_rakipler');
+  if (dolayli.length > 0) {
+    children.push(h('Dolaylı Rakipler', HeadingLevel.HEADING_2));
+    dolayli.forEach(d => children.push(p(`• ${d}`)));
   }
 
   // Porter
-  if (b?.porter) {
-    children.push(heading("Porter'ın 5 Gücü", HeadingLevel.HEADING_2));
-    const p = b.porter;
-    for (const [key, val] of Object.entries(p)) {
-      children.push(para(`${key}: ${val}`));
-    }
+  const porter = dig(s, 'B_rekabet.porter', 'B_rekabet.porter_5', 'B_rekabet.porter_analizi');
+  if (porter !== '—') {
+    children.push(h("Porter'ın 5 Gücü", HeadingLevel.HEADING_2));
+    try {
+      const obj = JSON.parse(porter);
+      Object.entries(obj).forEach(([k, v]) => children.push(p(`${k}: ${v}`)));
+    } catch { children.push(p(porter)); }
   }
 
   // SWOT
-  if (b?.swot) {
-    children.push(heading('SWOT Analizi', HeadingLevel.HEADING_2));
-    children.push(new Table({
-      width: { size: 100, type: WidthType.PERCENTAGE },
-      rows: [
-        new TableRow({ children: [headerCell('Güçlü (S)'), headerCell('Zayıf (W)')] }),
-        new TableRow({ children: [tableCellP((b.swot.S || []).join('\n')), tableCellP((b.swot.W || []).join('\n'))] }),
-        new TableRow({ children: [headerCell('Fırsatlar (O)'), headerCell('Tehditler (T)')] }),
-        new TableRow({ children: [tableCellP((b.swot.O || []).join('\n')), tableCellP((b.swot.T || []).join('\n'))] }),
-      ],
-    }));
+  children.push(h('SWOT Analizi', HeadingLevel.HEADING_2));
+  const sw = digArr(s, 'B_rekabet.swot.S', 'B_rekabet.swot.strengths');
+  const wk = digArr(s, 'B_rekabet.swot.W', 'B_rekabet.swot.weaknesses');
+  const op = digArr(s, 'B_rekabet.swot.O', 'B_rekabet.swot.opportunities');
+  const tr = digArr(s, 'B_rekabet.swot.T', 'B_rekabet.swot.threats');
+  if (sw.length > 0 || wk.length > 0) {
+    children.push(new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows: [
+      new TableRow({ children: [th('Güçlü Yönler (S)'), th('Zayıf Yönler (W)')] }),
+      new TableRow({ children: [tc(sw.join('\n') || '—'), tc(wk.join('\n') || '—')] }),
+      new TableRow({ children: [th('Fırsatlar (O)'), th('Tehditler (T)')] }),
+      new TableRow({ children: [tc(op.join('\n') || '—'), tc(tr.join('\n') || '—')] }),
+    ]}));
+  }
+
+  // TOWS
+  const tows = dig(s, 'B_rekabet.tows');
+  if (tows !== '—') {
+    children.push(h('TOWS Stratejileri', HeadingLevel.HEADING_2));
+    try {
+      const obj = JSON.parse(tows);
+      Object.entries(obj).forEach(([k, v]) => children.push(p(`${k.toUpperCase()}: ${v}`)));
+    } catch { children.push(p(tows)); }
   }
 
   // UVP & Moat
-  children.push(heading('Farklılaşma', HeadingLevel.HEADING_2));
-  children.push(para(`UVP: ${b?.uvp || '—'}`));
-  children.push(para(`Moat: ${b?.moat_tipi || '—'} (${b?.moat_suresi || '—'})`));
+  children.push(h('Farklılaşma', HeadingLevel.HEADING_2));
+  children.push(p(`UVP: ${dig(s, 'B_rekabet.uvp')}`));
+  children.push(p(`Moat: ${dig(s, 'B_rekabet.moat_tipi', 'B_rekabet.moat.tip')} — ${dig(s, 'B_rekabet.moat_suresi', 'B_rekabet.moat.sure', 'B_rekabet.moat.aciklama')}`));
 
-  children.push(...legalDisclaimer());
-
-  const doc = new Document({
-    sections: [{
-      headers: { default: makeHeader(meta.fikir_adi || 'Analiz', 'Rekabet Analizi') },
-      footers: { default: makeFooter() },
-      children,
-    }],
-  });
-
-  return Buffer.from(await Packer.toBuffer(doc));
+  return Buffer.from(await Packer.toBuffer(mkDoc(name, 'Rekabet Analizi', children)));
 }
 
 // ─── RİSK RAPORU ────────────────────────────────────────
-
 export async function generateRiskDocx(state: AnalysisState): Promise<Buffer> {
-  const { meta, C_strateji: c } = state;
+  const s = state as unknown as Record<string, unknown>;
+  const name = state.meta.fikir_adi || 'Analiz';
   const children: (Paragraph | Table)[] = [
-    new Paragraph({ children: [new TextRun({ text: `${meta.fikir_adi} — Risk Matrisi`, bold: true, size: 32, color: COLORS.primary })] }),
+    new Paragraph({ children: [new TextRun({ text: `${name} — Risk Matrisi`, bold: true, size: 32, color: C.primary })] }),
     new Paragraph({ spacing: { after: 200 }, children: [] }),
   ];
 
-  if (c?.riskler?.kill_risk?.var_mi) {
-    children.push(heading('⚠️ Kill Risk', HeadingLevel.HEADING_2));
-    children.push(para(c.riskler.kill_risk.aciklama, { color: COLORS.danger }));
-    children.push(para(`Test: ${c.riskler.kill_risk.test}`));
+  // Kill risk
+  const killRisk = dig(s, 'C_strateji.riskler.kill_risk.aciklama', 'C_strateji.risk_matrisi.kill_risk');
+  if (killRisk !== '—') {
+    children.push(h('Kill Risk', HeadingLevel.HEADING_2));
+    children.push(p(killRisk, { color: C.danger, bold: true }));
   }
 
-  if (c?.riskler?.top?.length) {
-    children.push(heading('Risk Matrisi', HeadingLevel.HEADING_2));
-    children.push(new Table({
-      width: { size: 100, type: WidthType.PERCENTAGE },
-      rows: [
-        new TableRow({ children: [headerCell('#'), headerCell('Risk'), headerCell('Kategori'), headerCell('Olasılık'), headerCell('Etki'), headerCell('Skor'), headerCell('Azaltma')] }),
-        ...c.riskler.top.map(r => new TableRow({
-          children: [tableCellP(String(r.no)), tableCellP(r.tanim), tableCellP(r.kategori), tableCellP(String(r.olasilik)), tableCellP(String(r.etki)), tableCellP(String(r.skor)), tableCellP(r.mitigation)],
-        })),
-      ],
-    }));
+  // Risk tablosu
+  const riskler = digArrObj(s, 'C_strateji.riskler.top', 'C_strateji.risk_matrisi', 'C_strateji.risk_matrisi.top_riskler');
+  if (riskler.length > 0) {
+    children.push(h('Risk Matrisi', HeadingLevel.HEADING_2));
+    children.push(new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows: [
+      new TableRow({ children: [th('Risk'), th('Kategori'), th('Olasılık'), th('Etki'), th('Skor')] }),
+      ...riskler.map(r => new TableRow({ children: [
+        tc(String(r.risk || r.tanim || '—')),
+        tc(String(r.kategori || r.category || '—')),
+        tc(String(r.olasilik || r['olasılık'] || '—')),
+        tc(String(r.etki || '—')),
+        tc(String(r.skor || '—')),
+      ]})),
+    ]}));
   }
 
-  if (c?.riskler?.pre_mortem?.length) {
-    children.push(heading('Pre-Mortem Senaryoları', HeadingLevel.HEADING_2));
-    for (const pm of c.riskler.pre_mortem) {
-      children.push(para(`${pm.senaryo}`, { bold: true }));
-      children.push(para(`Ne oldu: ${pm.ne_oldu}`));
-      children.push(para(`Kör nokta: ${pm.kor_nokta}`));
-      children.push(para(`Erken uyarı: ${pm.erken_uyari}`));
-      children.push(para(`90 gün testi: ${pm.test_90gun}`, { spacing: 200 }));
-    }
+  // Pre-mortem
+  const premortem = digArr(s, 'C_strateji.riskler.pre_mortem', 'C_strateji.pre_mortem');
+  if (premortem.length > 0) {
+    children.push(h('Pre-Mortem Senaryoları', HeadingLevel.HEADING_2));
+    premortem.forEach((pm, i) => children.push(p(`${i + 1}. ${pm}`)));
   }
 
-  children.push(...legalDisclaimer());
-  const doc = new Document({ sections: [{ headers: { default: makeHeader(meta.fikir_adi || 'Analiz', 'Risk Raporu') }, footers: { default: makeFooter() }, children }] });
-  return Buffer.from(await Packer.toBuffer(doc));
+  return Buffer.from(await Packer.toBuffer(mkDoc(name, 'Risk Raporu', children)));
 }
 
 // ─── GTM RAPORU ─────────────────────────────────────────
-
 export async function generateGtmDocx(state: AnalysisState): Promise<Buffer> {
-  const { meta, C_strateji: c } = state;
+  const s = state as unknown as Record<string, unknown>;
+  const name = state.meta.fikir_adi || 'Analiz';
   const children: (Paragraph | Table)[] = [
-    new Paragraph({ children: [new TextRun({ text: `${meta.fikir_adi} — GTM Planı`, bold: true, size: 32, color: COLORS.primary })] }),
+    new Paragraph({ children: [new TextRun({ text: `${name} — GTM Planı`, bold: true, size: 32, color: C.primary })] }),
     new Paragraph({ spacing: { after: 200 }, children: [] }),
 
-    heading('ICP & Beachhead', HeadingLevel.HEADING_2),
-    para(`ICP: ${c?.gtm?.icp || '—'}`),
-    para(`Beachhead: ${c?.gtm?.beachhead || '—'}`),
-    para(`Büyüme Motoru: ${c?.gtm?.buyume_motoru || '—'}`),
+    h('ICP & Beachhead', HeadingLevel.HEADING_2),
+    p(`ICP: ${dig(s, 'C_strateji.gtm.icp')}`),
+    p(`Beachhead: ${dig(s, 'C_strateji.gtm.beachhead')}`),
+    p(`Büyüme Motoru: ${dig(s, 'C_strateji.gtm.buyume_motoru')}`),
 
-    heading('Edinim Kanalları', HeadingLevel.HEADING_2),
+    h('Fiyatlama', HeadingLevel.HEADING_2),
+    p(dig(s, 'C_strateji.gtm.fiyatlama', 'C_strateji.is_modeli.fiyatlar')),
+
+    h('Edinim Kanalları', HeadingLevel.HEADING_2),
   ];
 
-  if (c?.gtm?.kanallar?.length) {
-    children.push(new Table({
-      width: { size: 100, type: WidthType.PERCENTAGE },
-      rows: [
-        new TableRow({ children: [headerCell('Kanal'), headerCell('CAC'), headerCell('Ölçeklenebilirlik'), headerCell('Hız'), headerCell('Öncelik')] }),
-        ...c.gtm.kanallar.map(k => new TableRow({
-          children: [tableCellP(k.kanal), tableCellP(k.tahmini_cac_tl), tableCellP(k.olceklenebilirlik), tableCellP(k.hiz), tableCellP(k.oncelik)],
-        })),
-      ],
-    }));
+  const kanallar = digArr(s, 'C_strateji.gtm.kanallar');
+  if (kanallar.length > 0) {
+    kanallar.forEach(k => children.push(p(`• ${k}`)));
   }
 
-  if (c?.gtm?.plan_90gun?.length) {
-    children.push(heading('90 Gün Lansman Planı', HeadingLevel.HEADING_2));
-    children.push(new Table({
-      width: { size: 100, type: WidthType.PERCENTAGE },
-      rows: [
-        new TableRow({ children: [headerCell('Ay'), headerCell('Hedef'), headerCell('Aksiyon'), headerCell('KPI')] }),
-        ...c.gtm.plan_90gun.map(p => new TableRow({
-          children: [tableCellP(`Ay ${p.ay}`), tableCellP(p.hedef), tableCellP(p.aksiyon), tableCellP(p.kpi)],
-        })),
-      ],
-    }));
+  // Birim ekonomisi
+  children.push(h('Birim Ekonomisi', HeadingLevel.HEADING_2));
+  const be = dig(s, 'C_strateji.birim_ekonomisi', 'C_strateji.gtm.birim_ekonomisi', 'C_strateji.birim_ekonomi');
+  if (be !== '—') {
+    try {
+      const obj = JSON.parse(be);
+      Object.entries(obj).forEach(([k, v]) => children.push(p(`${k}: ${v}`)));
+    } catch { children.push(p(be)); }
   }
 
-  children.push(...legalDisclaimer());
-  const doc = new Document({ sections: [{ headers: { default: makeHeader(meta.fikir_adi || 'Analiz', 'GTM Planı') }, footers: { default: makeFooter() }, children }] });
-  return Buffer.from(await Packer.toBuffer(doc));
+  // 90 gün plan
+  const plan = dig(s, 'C_strateji.gtm.plan_90gun', 'C_strateji.gtm.lansman_90');
+  if (plan !== '—') {
+    children.push(h('90 Gün Lansman Planı', HeadingLevel.HEADING_2));
+    children.push(p(plan));
+  }
+
+  return Buffer.from(await Packer.toBuffer(mkDoc(name, 'GTM Planı', children)));
 }
 
 // ─── FİNANSAL RAPOR ────────────────────────────────────
-
 export async function generateFinansalDocx(state: AnalysisState): Promise<Buffer> {
-  const { meta, D_final: d } = state;
+  const s = state as unknown as Record<string, unknown>;
+  const name = state.meta.fikir_adi || 'Analiz';
   const children: (Paragraph | Table)[] = [
-    new Paragraph({ children: [new TextRun({ text: `${meta.fikir_adi} — Finansal Projeksiyon`, bold: true, size: 32, color: COLORS.primary })] }),
+    new Paragraph({ children: [new TextRun({ text: `${name} — Finansal Projeksiyon`, bold: true, size: 32, color: C.primary })] }),
     new Paragraph({ spacing: { after: 200 }, children: [] }),
   ];
 
-  if (d?.finansal?.projeksiyon_yillik?.length) {
-    children.push(heading('5 Yıllık Projeksiyon', HeadingLevel.HEADING_2));
-    children.push(new Table({
-      width: { size: 100, type: WidthType.PERCENTAGE },
-      rows: [
-        new TableRow({ children: [headerCell(''), ...d.finansal.projeksiyon_yillik.map(y => headerCell(`Yıl ${y.yil}`))] }),
-        new TableRow({ children: [tableCellP('Müşteri', true), ...d.finansal.projeksiyon_yillik.map(y => tableCellP(String(y.musteri)))] }),
-        new TableRow({ children: [tableCellP('ARR', true), ...d.finansal.projeksiyon_yillik.map(y => tableCellP(y.arr_tl))] }),
-        new TableRow({ children: [tableCellP('EBITDA', true), ...d.finansal.projeksiyon_yillik.map(y => tableCellP(y.ebitda_tl))] }),
-        new TableRow({ children: [tableCellP('Nakit', true), ...d.finansal.projeksiyon_yillik.map(y => tableCellP(y.donem_sonu_nakit_tl))] }),
-      ],
-    }));
+  // Projeksiyon
+  const proj = dig(s, 'D_final.finansal.projeksiyon_yillik', 'D_final.finansal_projeksiyon');
+  if (proj !== '—') {
+    children.push(h('Finansal Projeksiyon', HeadingLevel.HEADING_2));
+    try {
+      const obj = JSON.parse(proj);
+      if (typeof obj === 'object' && !Array.isArray(obj)) {
+        // Key-value format (2024, 2026, 2028)
+        const years = Object.keys(obj);
+        const metrics = Object.keys(obj[years[0]] || {});
+        children.push(new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows: [
+          new TableRow({ children: [th(''), ...years.map(y => th(y))] }),
+          ...metrics.map(m => new TableRow({ children: [tc(m, true), ...years.map(y => tc(String((obj as Record<string, Record<string, unknown>>)[y]?.[m] || '—')))] })),
+        ]}));
+      }
+    } catch { children.push(p(proj)); }
   }
 
-  children.push(para(`Break-even: Ay ${d?.finansal?.breakeven_ay || '—'}`, { bold: true }));
+  // Senaryolar
+  const senaryo = dig(s, 'D_final.finansal.senaryo', 'D_final.senaryolar');
+  if (senaryo !== '—') {
+    children.push(h('Senaryo Analizi', HeadingLevel.HEADING_2));
+    try {
+      const obj = JSON.parse(senaryo);
+      Object.entries(obj).forEach(([k, v]) => children.push(p(`${k}: ${v}`)));
+    } catch { children.push(p(senaryo)); }
+  }
 
-  children.push(...legalDisclaimer());
-  const doc = new Document({ sections: [{ headers: { default: makeHeader(meta.fikir_adi || 'Analiz', 'Finansal Projeksiyon') }, footers: { default: makeFooter() }, children }] });
-  return Buffer.from(await Packer.toBuffer(doc));
+  // Break-even
+  children.push(p(`Break-even: ${dig(s, 'D_final.finansal.breakeven_ay')}`, { bold: true }));
+
+  // Exit
+  const exit = dig(s, 'D_final.exit', 'D_final.exit_stratejisi');
+  if (exit !== '—') {
+    children.push(h('Exit Stratejisi', HeadingLevel.HEADING_2));
+    try {
+      const obj = JSON.parse(exit);
+      Object.entries(obj).forEach(([k, v]) => children.push(p(`${k}: ${v}`)));
+    } catch { children.push(p(exit)); }
+  }
+
+  return Buffer.from(await Packer.toBuffer(mkDoc(name, 'Finansal Projeksiyon', children)));
 }
