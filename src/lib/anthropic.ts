@@ -7,13 +7,13 @@ const anthropic = new Anthropic({
 });
 
 // ─── Web Search Tool Definition ─────────────────────────
-// Anthropic API'nin built-in web search aracı
+// Anthropic API built-in web search — SDK tipleri henüz güncel olmayabilir
 
 const WEB_SEARCH_TOOL = {
-  type: 'web_search_20250305' as const,
-  name: 'web_search' as const,
+  type: 'web_search_20250305',
+  name: 'web_search',
   max_uses: 10,
-};
+} as unknown as Anthropic.Tool;
 
 // ─── Parse state updates from Claude's response ────────
 
@@ -84,7 +84,6 @@ function buildMessages(
   history: ChatMessage[],
   newMessage: string,
 ): Array<{ role: 'user' | 'assistant'; content: string }> {
-  // Take last ~20 messages for context (keep it within token limits)
   const recent = history.slice(-20);
 
   const messages: Array<{ role: 'user' | 'assistant'; content: string }> = [];
@@ -98,18 +97,6 @@ function buildMessages(
 
   messages.push({ role: 'user', content: newMessage });
   return messages;
-}
-
-// ─── Extract text from streaming response ───────────────
-// Handles both regular text deltas and web search citation blocks
-
-function extractTextFromContentBlock(event: any): string | null {
-  if (event.type === 'content_block_delta') {
-    if (event.delta.type === 'text_delta') {
-      return event.delta.text;
-    }
-  }
-  return null;
 }
 
 // ─── Streaming analysis with web search ─────────────────
@@ -132,9 +119,11 @@ export async function* streamAnalysis(
   });
 
   for await (const event of stream) {
-    const text = extractTextFromContentBlock(event);
-    if (text) {
-      yield text;
+    if (
+      event.type === 'content_block_delta' &&
+      event.delta.type === 'text_delta'
+    ) {
+      yield event.delta.text;
     }
   }
 }
