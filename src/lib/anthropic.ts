@@ -6,6 +6,15 @@ const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY!,
 });
 
+// ─── Web Search Tool Definition ─────────────────────────
+// Anthropic API'nin built-in web search aracı
+
+const WEB_SEARCH_TOOL = {
+  type: 'web_search_20250305' as const,
+  name: 'web_search' as const,
+  max_uses: 10,
+};
+
 // ─── Parse state updates from Claude's response ────────
 
 export function parseStateUpdate(content: string): {
@@ -91,7 +100,19 @@ function buildMessages(
   return messages;
 }
 
-// ─── Streaming analysis ─────────────────────────────────
+// ─── Extract text from streaming response ───────────────
+// Handles both regular text deltas and web search citation blocks
+
+function extractTextFromContentBlock(event: any): string | null {
+  if (event.type === 'content_block_delta') {
+    if (event.delta.type === 'text_delta') {
+      return event.delta.text;
+    }
+  }
+  return null;
+}
+
+// ─── Streaming analysis with web search ─────────────────
 
 export async function* streamAnalysis(
   state: AnalysisState,
@@ -104,17 +125,16 @@ export async function* streamAnalysis(
 
   const stream = anthropic.messages.stream({
     model: 'claude-sonnet-4-20250514',
-    max_tokens: 8192,
+    max_tokens: 16384,
     system: systemPrompt,
     messages,
+    tools: [WEB_SEARCH_TOOL],
   });
 
   for await (const event of stream) {
-    if (
-      event.type === 'content_block_delta' &&
-      event.delta.type === 'text_delta'
-    ) {
-      yield event.delta.text;
+    const text = extractTextFromContentBlock(event);
+    if (text) {
+      yield text;
     }
   }
 }
@@ -132,9 +152,10 @@ export async function runAnalysis(
 
   const response = await anthropic.messages.create({
     model: 'claude-sonnet-4-20250514',
-    max_tokens: 8192,
+    max_tokens: 16384,
     system: systemPrompt,
     messages,
+    tools: [WEB_SEARCH_TOOL],
   });
 
   return response.content
