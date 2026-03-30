@@ -7,7 +7,6 @@ const anthropic = new Anthropic({
 });
 
 // ─── Web Search Tool ────────────────────────────────────
-// max_uses: 3 → web search daha hızlı bitiyor (Vercel 60s timeout)
 
 const WEB_SEARCH_TOOL = {
   type: 'web_search_20250305',
@@ -26,13 +25,29 @@ export function parseStateUpdate(content: string): {
   let stateUpdate: Partial<AnalysisState> | null = null;
   const hasCheckpoint = content.includes('[CHECKPOINT]');
 
-  const stateMatch = content.match(/```state_update\s*([\s\S]*?)```/);
+  // Try multiple state_update patterns for robustness
+  const patterns = [
+    /```state_update\s*([\s\S]*?)```/,
+    /```json\s*\n\s*\{\s*"meta"/,
+  ];
+
+  const stateMatch = content.match(patterns[0]);
   if (stateMatch) {
     try {
       stateUpdate = JSON.parse(stateMatch[1].trim());
-      text = text.replace(/```state_update\s*[\s\S]*?```/, '').trim();
+      text = text.replace(patterns[0], '').trim();
     } catch (e) {
       console.error('Failed to parse state update:', e);
+      // Try to extract JSON even if malformed
+      try {
+        const jsonStr = stateMatch[1].trim();
+        // Fix common issues: trailing commas, missing quotes
+        const fixed = jsonStr.replace(/,\s*}/g, '}').replace(/,\s*]/g, ']');
+        stateUpdate = JSON.parse(fixed);
+        text = text.replace(patterns[0], '').trim();
+      } catch (e2) {
+        console.error('State update parse retry failed:', e2);
+      }
     }
   }
 
@@ -40,18 +55,39 @@ export function parseStateUpdate(content: string): {
   return { text, stateUpdate, hasCheckpoint };
 }
 
-// ─── Merge state ────────────────────────────────────────
+// ─── Merge state (deep merge for nested objects) ────────
 
 export function mergeState(
   current: AnalysisState,
   update: Partial<AnalysisState>,
 ): AnalysisState {
+  const deepMerge = (target: any, source: any): any => {
+    if (!source) return target;
+    if (!target) return source;
+    const result = { ...target };
+    for (const key of Object.keys(source)) {
+      if (
+        source[key] &&
+        typeof source[key] === 'object' &&
+        !Array.isArray(source[key]) &&
+        target[key] &&
+        typeof target[key] === 'object' &&
+        !Array.isArray(target[key])
+      ) {
+        result[key] = deepMerge(target[key], source[key]);
+      } else {
+        result[key] = source[key];
+      }
+    }
+    return result;
+  };
+
   return {
-    meta: { ...current.meta, ...(update.meta || {}) },
-    A_pazar: { ...current.A_pazar, ...(update.A_pazar || {}) },
-    B_rekabet: { ...current.B_rekabet, ...(update.B_rekabet || {}) },
-    C_strateji: { ...current.C_strateji, ...(update.C_strateji || {}) },
-    D_final: { ...current.D_final, ...(update.D_final || {}) },
+    meta: deepMerge(current.meta, update.meta),
+    A_pazar: deepMerge(current.A_pazar, update.A_pazar),
+    B_rekabet: deepMerge(current.B_rekabet, update.B_rekabet),
+    C_strateji: deepMerge(current.C_strateji, update.C_strateji),
+    D_final: deepMerge(current.D_final, update.D_final),
   };
 }
 
@@ -75,22 +111,40 @@ export function detectCommand(message: string): string | null {
   return null;
 }
 
-// ─── Build messages (token-safe) ────────────────────────
+// ─── Build messages (token-safe + context-preserving) ───
 
 function buildMessages(
   history: ChatMessage[],
   newMessage: string,
 ): Array<{ role: 'user' | 'assistant'; content: string }> {
-  // Max 8 messages — keeps input under 30K tokens/min limit
-  const recent = history.slice(-8);
+  // Keep last 6 messages but smartly summarize old assistant messages
+  const recent = history.slice(-6);
 
   const messages: Array<{ role: 'user' | 'assistant'; content: string }> = [];
-  for (const msg of recent) {
-    // Truncate long assistant responses to save tokens
-    const content = msg.role === 'assistant' && msg.content.length > 2000
-      ? msg.content.substring(0, 2000) + '\n\n[...kısaltıldı...]'
-      : msg.content;
-    messages.push({ role: msg.role, content });
+  for (let i = 0; i < recent.length; i++) {
+    const msg = recent[i];
+    if (msg.role === 'assistant') {
+      // For assistant messages, keep checkpoint info and key decisions
+      // but truncate long analysis text
+      if (msg.content.length > 2000) {
+        // Extract key info: checkpoint, module, scores
+        const hasCheckpoint = msg.content.includes('✅') || msg.content.includes('Checkpoint');
+        const moduleMatch = msg.content.match(/Modül\s+([A-D])/i);
+        const skorMatch = msg.content.match(/(\d+(?:\.\d+)?)\s*\/\s*100/);
+
+        let summary = msg.content.substring(0, 1500);
+        if (hasCheckpoint) summary += '\n[Checkpoint tamamlandı]';
+        if (moduleMatch) summary += `\n[Modül ${moduleMatch[1]} analizi]`;
+        if (skorMatch) summary += `\n[Skor: ${skorMatch[1]}/100]`;
+        summary += '\n[...kısaltıldı...]';
+
+        messages.push({ role: msg.role, content: summary });
+      } else {
+        messages.push({ role: msg.role, content: msg.content });
+      }
+    } else {
+      messages.push({ role: msg.role, content: msg.content });
+    }
   }
 
   messages.push({ role: 'user', content: newMessage });
@@ -108,13 +162,17 @@ export async function* streamAnalysis(
   const systemPrompt = buildSystemPrompt(state, moduleContext);
   const messages = buildMessages(history, userMessage);
 
+  // Web search for A, B, D — not C (strategy uses existing data)
+  const needsWebSearch = ['A', 'B', 'D'].includes(state.meta.aktif_modul);
+  const tools = needsWebSearch ? [WEB_SEARCH_TOOL] : [];
+
   try {
     const stream = anthropic.messages.stream({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 8000,
       system: systemPrompt,
       messages,
-      tools: [WEB_SEARCH_TOOL],
+      ...(tools.length > 0 ? { tools } : {}),
     });
 
     for await (const event of stream) {
@@ -127,7 +185,29 @@ export async function* streamAnalysis(
     }
   } catch (error: any) {
     if (error?.status === 429) {
-      yield '\n\n⏳ Rate limit — lütfen 60 saniye bekleyip tekrar deneyin.\n';
+      yield '\n\n⏳ Rate limit — 30 saniye bekleniyor...\n';
+      await new Promise(resolve => setTimeout(resolve, 30000));
+
+      try {
+        // Retry without web search to reduce token load
+        const retryStream = anthropic.messages.stream({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 8000,
+          system: systemPrompt,
+          messages,
+        });
+
+        for await (const event of retryStream) {
+          if (
+            event.type === 'content_block_delta' &&
+            event.delta.type === 'text_delta'
+          ) {
+            yield event.delta.text;
+          }
+        }
+      } catch (retryError: any) {
+        yield '\n\n❌ Rate limit devam ediyor. Lütfen 1-2 dakika bekleyip tekrar deneyin.\n';
+      }
     } else {
       throw error;
     }
@@ -150,7 +230,6 @@ export async function runAnalysis(
     max_tokens: 8000,
     system: systemPrompt,
     messages,
-    tools: [WEB_SEARCH_TOOL],
   });
 
   return response.content

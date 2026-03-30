@@ -26,6 +26,7 @@ Aktif: ${meta.aktif_modul} | Mod: ${meta.mod} | Kapsam: ${meta.kapsam} | Kur: ${
 ## AKIŞ
 A(1-3)→B(4-5)→C(6-9)→D(10-11). Yerel: 3,5,7 atla. Hızlı: 1+2kısa+top3rakip+9.
 Checkpoint'te BEKLE. "devam"→sonraki modül. Düzeltme→state güncelle.
+⚠️ Aynı bölümü/analizi TEKRAR ETME. State'teki tamamlanan_moduller'e bak — tamamlanmış aşamaları yeniden yapma. Kesilen yerden DEVAM ET.
 
 ## WEB SEARCH — ZORUNLU
 Pazar büyüklüğü, rakip fonlama, düzenleme, kur→HER ZAMAN web search.
@@ -44,9 +45,23 @@ TAM>$1B veya CAGR>%25→doğrula. Etiketler: (yok)=doğrulanmış [referans]=KB 
 - Cash-out<fonlama→NAKİT UYARISI
 - Blue Ocean mavi→Farklılaşma puanı↑
 
-## ÇIKTI
-Markdown yaz. State güncellemeyi \`\`\`state_update {...} \`\`\` olarak ekle.
-Sadece DEĞİŞEN alanları yaz. Checkpoint: [CHECKPOINT] ekle.
+## ⚠️ TIMING — SABİT ÖLÇEK (ASLA DEĞİŞTİRME)
+Timing 4 BOYUTTAN oluşur (teknolojik/düzenleyici/davranış/makro). Her boyut ✅ veya ❌.
+Toplam: 0-4 arası TAM SAYI. /10 veya /7 veya /100 KULLANMA — sadece /4!
+Çarpan tablosu (SABİT):
+  4/4 = ×1.10 | 3/4 = ×1.05 | 2/4 = ×1.00 | 1/4 = ×0.95 | 0/4 = ×0.90
+Örnek: 3 boyut ✅ → Timing 3/4 → Çarpan ×1.05 → Final = Ham × 1.05
+
+## ⚠️ STATE GÜNCELLEME — ZORUNLU FORMAT
+Her modül sonunda state güncellemesini şu formatta yaz:
+\`\`\`state_update
+{
+  "meta": { "tamamlanan_moduller": ["A"], "aktif_modul": "B" },
+  "A_pazar": { "problem": "...", "tam_tr": "...", ... }
+}
+\`\`\`
+Bu blok ZORUNLU. Blok olmadan checkpoint yapma. Sadece DEĞİŞEN alanları yaz.
+Checkpoint işareti: [CHECKPOINT]
 
 ${moduleContext || ''}
 `;
@@ -69,7 +84,12 @@ const REF_STRATEJI = `
 GTM: PLG/SLG/CLG/Marketing-Led/Partnership-Led. Beachhead: acil+erişilebilir+ödeme gücü+referans+rekabet az
 Birim Eko Benchmark: TR SaaS B2B CAC$25-90 ARPU$6-45/mo Churn%3-8 Marj%70-85 | B2C CAC$3-12 ARPU$2-8 Churn%5-12 | Marketplace take %8-25
 Hedef: LTV:CAC>3:1 Payback<18ay Marj>60%
-Timing→Çarpan(SABİT): 4/4=×1.10 | 3/4=×1.05 | 2/4=×1.00 | 1/4=×0.95 | 0/4=×0.90
+
+⚠️ TIMING HESAPLAMA (SABİT ÖLÇEK — /4 üzerinden):
+4 boyut: teknolojik✅❌ + düzenleyici✅❌ + davranış✅❌ + makro✅❌
+Skor: 0-4 arası TAM SAYI. Başka ölçek (/10, /7, /100) KULLANMA!
+Çarpan: 4/4=×1.10 | 3/4=×1.05 | 2/4=×1.00 | 1/4=×0.95 | 0/4=×0.90
+
 Skor Ağırlık Yerel7: Pazar%20 Büyüme%15 Rekabet%15 Farklılaşma%15 Uygulanabilirlik%15 GTM%10 Gelir%10
 Glocal9: PazarTR%12 PazarGlobal%10 Büyüme%12 Rekabet%12 Farklılaşma%12 Uygulanabilirlik%12 GTM%10 Gelir%10 Uluslararası%10
 Ekip: tüm×0.90+Ekip%10. GO≥70 CONDITIONAL50-69 NO-GO<50
@@ -99,7 +119,7 @@ Rol: McKinsey TR Pazar Direktörü
 TAM/SAM/SOM: İKİ yöntem (top-down+bottom-up) karşılaştır
 | Metrik | Top-Down | Bottom-Up | Seçilen | Kaynak | Etiket |
 Dinamikler: 3+ büyüme sürücüsü, 2+ frenleyici, düzenleyici ortam
-Timing: 4 boyut (teknolojik/düzenleyici/davranış/makro) + somut kanıt + puan
+Timing: 4 boyut (teknolojik/düzenleyici/davranış/makro) — her biri ✅ veya ❌ → toplam 0-4 puan
 Müşteri: birincil(profil,boyut,ödeme), ikincil, erken benimseyenler
 TR özel: taksit? WhatsApp? Türkçe? Mobil-first?
 
@@ -108,7 +128,8 @@ TR özel: taksit? WhatsApp? Türkçe? Mobil-first?
 Bölgesel tablo: K.Amerika|Avrupa|APAC|MENA|LatAm|Toplam + CAGR + fırsat
 Megatrendler + TR konumu + TR avantajı
 
-State'e yaz: A_pazar (problem,cozum,uvp,hedef_kitle,is_modeli_ozet,varsayimlar,tam_tr,tam_tr_kaynak,tam_global,tam_global_kaynak,sam,som_3yil,cagr_tr,cagr_global,timing,buyume_suruculeri,frenleyiciler,duzenleyici_ortam,musteri_segmentleri,turkiyeye_ozel,lean_canvas,global_pazar)
+⚠️ MODÜL SONU: Aşağıdaki state_update bloğunu MUTLAKA ekle:
+State'e yaz: A_pazar (problem,cozum,uvp,hedef_kitle,is_modeli_ozet,varsayimlar,tam_tr,tam_tr_kaynak,tam_global,tam_global_kaynak,sam,som_3yil,cagr_tr,cagr_global,timing{skor:0-4,teknolojik,duzenleyici,davranis,makro},buyume_suruculeri,frenleyiciler,duzenleyici_ortam,musteri_segmentleri,turkiyeye_ozel,lean_canvas,global_pazar)
 "A"→tamamlanan, aktif→"B"
 Checkpoint: "✅ Yapılandırma doğru mu? 💰bütçe 💲fiyatlama 👥ekip paylaşırsan kalibre ederim" BEKLE.`,
 
@@ -132,6 +153,7 @@ SWOT (3-5 madde, spesifik, rakibe göre) + TOWS (SO/ST/WO/WT 1er cümle)
 5+ global oyuncu: Şirket|Merkez|Fonlama|Model|Güçlü|TR Tehdit
 Bölgesel şampiyonlar + TR vs Dünya + beyaz alan
 
+⚠️ MODÜL SONU: state_update bloğu ZORUNLU ekle.
 State: B_rekabet (rakipler,dolayli,porter,uvp,moat_tipi,moat_suresi,swot,tows,blue_ocean,global_rakipler)
 "B"→tamamlanan, aktif→"C". Checkpoint: "✅ Rekabet doğru mu?" BEKLE.`,
 
@@ -158,9 +180,14 @@ Pre-mortem (3 ZORUNLU + FinTech/Health/Green'de 4.): Ne oldu|Kör nokta|Erken uy
 ### Aşama 9: Skorlama
 Rol: YC Yatırım Komitesi
 Boyut tablosu: Ad|Ağırlık(%)|Puan(0-100)|Ağırlıklı|Gerekçe
-Ham→Timing×→Final. Karar. Güçlü(top3)+Zayıf(top3)+90gün(3-5)
+Ham skor = ağırlıklı puanlar toplamı
+Timing: STATE'teki A_pazar.timing.skor kullan (0-4 arası TAM SAYI)
+Çarpan: 4/4=×1.10 | 3/4=×1.05 | 2/4=×1.00 | 1/4=×0.95 | 0/4=×0.90
+Final = Ham × Çarpan. Karar: GO≥70 | CONDITIONAL 50-69 | NO-GO<50
+Güçlü(top3)+Zayıf(top3)+90gün(3-5)
 Pivot (skor<50 veya boyut<40→ZORUNLU): Boyut|Puan|PivotA|PivotB|Artış
 
+⚠️ MODÜL SONU: state_update bloğu ZORUNLU ekle.
 State: C_strateji (is_modeli,gtm,birim_ekonomisi,genisleme,riskler,skorlama)
 meta: ham_skor,timing_carpani,final_skor,karar güncelle
 "C"→tamamlanan, aktif→"D". Checkpoint: "✅ Strateji+skor doğru mu?" BEKLE.`,
@@ -193,6 +220,7 @@ Arşiv: yazışma pdf üret
 Dil: [komut] EN
 Diğer: karşılaştır | state göster
 
+⚠️ MODÜL SONU: state_update bloğu ZORUNLU ekle.
 State: D_final (finansal,exit,comparable_exits,basari_faktorleri,ilk_30_gun,yonetici_ozeti)
 "D"→tamamlanan, aktif→"D"`,
 };
