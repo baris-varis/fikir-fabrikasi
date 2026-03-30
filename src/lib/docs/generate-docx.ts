@@ -35,7 +35,7 @@ function digArrObj(obj: Record<string, unknown>, ...paths: string[]): Record<str
   return [];
 }
 
-function h(text: string, level = HeadingLevel.HEADING_1) {
+function h(text: string, level: (typeof HeadingLevel)[keyof typeof HeadingLevel] = HeadingLevel.HEADING_1) {
   return new Paragraph({ heading: level, spacing: { before: 300, after: 150 }, children: [new TextRun({ text, color: C.primary, bold: true })] });
 }
 function p(text: string, opts?: { bold?: boolean; color?: string; size?: number }) {
