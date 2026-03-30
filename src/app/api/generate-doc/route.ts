@@ -95,7 +95,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'Generator not found' }, { status: 400 });
     }
 
-    return new Response(buffer, {
+    return new Response(new Uint8Array(buffer), {
       headers: {
         'Content-Type': docInfo.contentType,
         'Content-Disposition': `attachment; filename="${encodeURIComponent(filename)}"`,
