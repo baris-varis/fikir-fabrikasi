@@ -6,8 +6,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { detectDocCommand, generateDocument, generateBatch, DocResult } from '@/lib/docs';
 import { generateTranskript } from '@/lib/docs/generate-transkript';
-
-// Redis import — projedeki mevcut redis.ts dosyasından
 import redis from '@/lib/redis';
 
 export async function POST(req: NextRequest) {
@@ -19,15 +17,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing command parameter' }, { status: 400 });
     }
 
-    // Komutu algıla
     const detected = detectDocCommand(command);
     if (!detected) {
       return NextResponse.json({ error: 'Unrecognized document command', command }, { status: 400 });
     }
 
-    // State'i al — ya direkt sağlandı ya da Redis'ten çekilecek
+    // State'i al
     let state = providedState;
-
     if (!state && analysisId) {
       try {
         const redisData = await redis.get(`analysis:${analysisId}:state`);
@@ -46,7 +42,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Yazışma PDF özel akışı — messages gerekli
+    // Yazışma transkript özel akışı
     if (detected.commandKey === 'yazisma_pdf') {
       if (!messages || !Array.isArray(messages) || messages.length === 0) {
         return NextResponse.json(
@@ -56,17 +52,17 @@ export async function POST(req: NextRequest) {
       }
       const buffer = await generateTranskript(state, messages, detected.lang);
       const fikir = state?.meta?.fikir_adi || 'Startup';
-      const filename = `Yazisma_Transkript_${sanitize(fikir)}.pdf`;
-      return new NextResponse(buffer, {
+      const filename = `Yazisma_Transkript_${sanitize(fikir)}.docx`;
+      return new NextResponse(new Uint8Array(buffer), {
         status: 200,
         headers: {
-          'Content-Type': 'application/pdf',
+          'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
           'Content-Disposition': `attachment; filename="${encodeURIComponent(filename)}"`,
         },
       });
     }
 
-    // Toplu komut mu?
+    // Toplu komut
     if (detected.commandKey.startsWith('batch:')) {
       const batchKey = detected.commandKey.replace('batch:', '');
       const results = await generateBatch(batchKey, state, detected.lang);
@@ -75,7 +71,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'No documents generated' }, { status: 500 });
       }
 
-      return new NextResponse(results[0].buffer, {
+      return new NextResponse(new Uint8Array(results[0].buffer), {
         status: 200,
         headers: {
           'Content-Type': results[0].mimeType,
@@ -86,10 +82,10 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Tekil doküman üret
+    // Tekil doküman
     const result: DocResult = await generateDocument(detected.commandKey, state, detected.lang);
 
-    return new NextResponse(result.buffer, {
+    return new NextResponse(new Uint8Array(result.buffer), {
       status: 200,
       headers: {
         'Content-Type': result.mimeType,
@@ -105,35 +101,24 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// GET — komut listesi
 export async function GET() {
   return NextResponse.json({
     commands: {
       'exec summary üret': 'One-Pager Executive Summary (.docx)',
       'detaylı exec summary üret': 'Detailed Executive Summary 3-5 pages (.docx)',
-      'teaser üret': 'Investment Teaser — cold outreach (.docx)',
-      'pitch deck üret': 'Pitch Deck content guide + appendix (.docx)',
-      'sunum üret': 'Pitch Deck presentation + appendix (.pptx)',
-      'finansal model üret': 'Financial Model 11-sheet investor-grade (.xlsx)',
+      'teaser üret': 'Investment Teaser (.docx)',
+      'pitch deck üret': 'Pitch Deck content guide (.docx)',
+      'sunum üret': 'Pitch Deck presentation (.pptx)',
+      'finansal model üret': 'Financial Model 11-sheet (.xlsx)',
       'rekabet docx üret': 'Competition analysis + Porter + SWOT (.docx)',
-      'risk docx üret': 'Risk matrix + pre-mortem + mitigation (.docx)',
+      'risk docx üret': 'Risk matrix + pre-mortem (.docx)',
       'finansal docx üret': '5-year projections + scenarios (.docx)',
       'gtm docx üret': 'GTM plan + 90-day detail (.docx)',
       'data room üret': 'Data Room Checklist (.docx)',
-      'lean canvas üret': 'Lean Canvas one-pager (.docx)',
-      'yazışma pdf üret': 'Full chat transcript (.pdf)',
-      'tablolar üret': 'All 4 table documents sequentially',
-      'hepsini üret': 'Full investor package (12 documents)',
-    },
-    usage: {
-      method: 'POST',
-      body: {
-        command: 'string — document command (e.g., "exec summary üret")',
-        analysisId: 'string — analysis ID for Redis state lookup (optional if state provided)',
-        state: 'object — full analysis state JSON (optional if analysisId provided)',
-        messages: 'array — chat messages for transcript (required only for "yazışma pdf üret")',
-      },
-      langSuffix: 'Add "EN" at end for English version (e.g., "exec summary üret EN")',
+      'lean canvas üret': 'Lean Canvas (.docx)',
+      'yazışma pdf üret': 'Chat transcript (.docx)',
+      'tablolar üret': '4 table documents',
+      'hepsini üret': 'Full investor package (12 docs)',
     },
   });
 }

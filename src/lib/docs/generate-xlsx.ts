@@ -526,3 +526,6 @@ function normalizeYearlyProjection(proj: any): any[] {
   }
   return [];
 }
+
+// Backward compatibility alias — eski route.ts dosyası bu isimle import ediyor
+export const generateFinansalXlsx = generateFinancialModel;

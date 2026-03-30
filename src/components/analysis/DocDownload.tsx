@@ -133,7 +133,7 @@ async function downloadDocument(
     });
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: 'Unknown error' }));
+      const error = await response.json().catch(() => ({ error: 'Unknown error' })) as { error?: string };
       throw new Error(error.error || `HTTP ${response.status}`);
     }
 
